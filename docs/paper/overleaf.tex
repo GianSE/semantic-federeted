@@ -1,0 +1,209 @@
+\documentclass[conference,twocolumn]{IEEEtran}
+%\documentclass[10pt,journal]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+\usepackage{graphics, graphicx}
+\usepackage{amsmath, amsthm, amssymb, amsfonts}
+\usepackage{algorithm}
+\usepackage{algpseudocode}%usepackage{multirow}
+\usepackage{url}
+\usepackage{soul}  
+\usepackage{tabularx}
+\usepackage{comment}
+\usepackage{glossaries}
+\usepackage{soul}
+\usepackage{subfig}
+\usepackage{tikz}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{glossaries}
+%\usepackage{dblfloatfix}    % To enable figures at the bottom of page
+\usepackage{tabu}
+\usepackage{tabularx}
+\usepackage[nocomma]{optidef}
+\usepackage{soul}
+\newcommand{\xmark}{\ding{55}}
+\usepackage{lipsum}  
+\usepackage{xcolor, colortbl}
+\setlength{\textfloatsep}{2pt}
+\usepackage{mathtools, nccmath}
+\usepackage{xpatch}
+\xpatchcmd{\NCC@ignorepar}{%
+\abovedisplayskip\abovedisplayshortskip}
+{%
+\abovedisplayskip\abovedisplayshortskip%
+\belowdisplayskip\belowdisplayshortskip}
+{}{}
+
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+
+\urlstyle{same}
+
+\input{acronym}
+%---------------------
+% \usepackage{geometry}
+%  \geometry{
+%  a4paper,
+%  total={170mm,257mm},
+%  left=20mm,
+%  top=20mm,
+%  bottom=25.4mm
+%  }
+ %---------------------
+\definecolor{cian}{rgb}{.02,.7,.95}
+\definecolor{gold}{rgb}{0.85,.66,0}
+\definecolor{Gray}{gray}{0.95}
+\newcommand{\ta}{\textcolor{cyan}}
+\newcommand{\pp}{\textcolor{blue}}
+\newcommand{\hs}{\textcolor{black!40!red!50!blue!80}}
+\newcommand{\mv}{\textcolor{purple}}
+\newcommand{\ys}{\textcolor{purple}}
+\newcommand{\cv}{\textcolor{gold}}
+\newcommand{\gpr}{\textcolor{olive}}
+\newcommand{\jcm}{\textcolor{orange}}
+% \newcommand{\hsobs}{\textcolor{cyan}}
+\newcommand{\colb}{\textcolor{blue}}
+\newcommand{\colr}{\textcolor{red}}
+%\newcommand{\colg}{\textcolor{gold}}
+\newcommand{\coln}{\textcolor{green}}
+\newcommand{\colk}{\textcolor{black}}
+\newcommand{\colm}{\textcolor{magenta}}
+%\newcommand{\colo}{\textcolor{orange}}
+\newcommand{\colnb}{\textcolor{green!50!black!80}}
+\newcommand{\colgb}{\textcolor{green!50!black!20}}
+\newcommand{\colbb}{\color{blue!50!black!20}}
+
+\newcommand{\bs}[1]{\boldsymbol{#1}}
+%----------------------------------------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\p}{\mathbf{p}}
+\renewcommand{\P}{\mathbf{P}}
+%...............
+\newcommand{\bph}{\boldsymbol{\phi}}
+\newcommand{\bPh}{\boldsymbol{\Phi}}
+\newcommand{\bth}{\boldsymbol{\theta}}
+\newcommand{\bvt}{\boldsymbol{\vartheta}}
+\newcommand{\brho}{\boldsymbol{\rho}}
+\newcommand{\bOm}{\boldsymbol{\Omega}}
+\newcommand{\bom}{\boldsymbol{\omega}}
+\newcommand{\bnu}{\boldsymbol{\nu}}
+\newcommand{\bvp}{\boldsymbol{\varphi}}
+%.......
+\newcommand{\bab}{{{\bf a}_\rB}}
+\newcommand{\babt}{{{\bf a}^\rT_\rB}}
+\newcommand{\baR}{{{\bf a}_\rR}}
+\newcommand{\baRt}{{{\bf a}^\rT_\rR}}
+\newcommand{\baS}{{\bf a}_\rS}
+\newcommand{\bak}{{{\bf a}_k}}
+\newcommand{\rB}{{\rm B}}
+\newcommand{\rR}{{\rm R}}
+\newcommand{\rS}{{\rm S}}
+\newcommand{\rT}{{\top}}
+%----------------------------------------------------------
+
+\newcommand{\colg}{\textcolor{gold}}
+\newcommand{\colo}{\textcolor{orange}}
+
+\newcommand{\colc}{\textcolor{cyan}}
+\newcommand{\coli}{\textcolor{light-blue}}
+\newcommand{\obs}{\textcolor{mygrey}}
+\newcommand{\colp}{\textcolor{ppp}}
+
+\newcommand{\ar} {\colc{$\rightarrow$}\,\,}
+\newcommand{\Ar} {\, \colr{$\Rightarrow$}\,}
+\newcommand{\dm} {\, $\colc{\diamond}\,$}
+\newcommand{\ck} {$\colb{\checkmark}$}
+\newcommand{\cc} {\, $\colr{\circ}\,$}
+
+%\usepackage{setspace}
+\newcommand{\bm}[1]{\mbox{\boldmath{$#1$}}}
+\renewcommand\tabularxcolumn[1]{m{#1}}% for vertical centering text in X column
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+
+%\newcolumntype{L}{>{\centering\arraybackslash}m{.5cm}}
+%\newcommand{\dm}{$\diamond$}
+
+\DeclareMathOperator*{\argmin}{arg\,\min}
+\DeclareMathOperator*{\argmax}{arg\,\max}
+
+\title{{Federated Learning-Aided Network Efficiency Optimization Using GenAI and Semantics}
+\thanks{
+%This work was supported in part by the Coordenação de Aperfeiçoamento de Pessoal de Nível Superior - Brasil (CAPES) – PDSE Program and by the National Council for Scientific and Technological Development (CNPq) of Brazil under Grants 405301/2021-9, 141485/2020-5, and 310681/2019-7. The work of M. V. Vejling and P. Popovski were supported in part by the Villum Investigator Grant “WATER” financed by the VILLUM Foundation, Denmark.
+}
+}
+\author{
+\IEEEauthorblockN{
+    {%\hs
+    {Gian Pedro Rodrigues}}\IEEEauthorrefmark{1},
+    {%\mv
+    {Herman L. dos Santos}}\IEEEauthorrefmark{1},%\IEEEauthorrefmark{3},
+    % {%\ta
+    % {~}}\IEEEauthorrefmark{1},
+    % and {%\pp
+    % {~}}\IEEEauthorrefmark{2} \\
+        }
+        \IEEEauthorblockA{
+        \IEEEauthorrefmark{1}\textit{\small Academic Department of Electrical, Federal University of Technology - Paraná}, Cornélio Procópio, Brazil\\
+        %\IEEEauthorrefmark{2}\textit{\small Department of Electronic Systems, Aalborg University}, Aalborg, Denmark\\
+        %\IEEEauthorrefmark{3}\textit{\small Department of Mathematical Sciences, Aalborg University}, Aalborg, Denmark\\
+        \small E-mail: hermansantos@utfpr.edu.br,% mvv@es.aau.dk, taufik@uel.br, and petarp@es.aau.dk 
+        }
+}
+\begin{document}
+\maketitle
+
+\thispagestyle{plain}
+\pagestyle{plain}
+
+\begin{abstract}
+
+\end{abstract}
+\begin{IEEEkeywords} 
+
+\end{IEEEkeywords}
+
+
+\section{Introduction}
+\gpr{The rapid expansion of connected device networks, coupled with the exponential growth in data generation, has highlighted the need for more efficient and privacy-preserving approaches to training artificial intelligence models. In this context, federated learning emerges as a promising paradigm by enabling decentralized model training without the need to share raw data. When combined with semantic understanding and generative AI, this approach can significantly enhance communication efficiency in intelligent networks, paving the way for more scalable and secure data-driven systems.}
+
+\section{System Model}
+\colb{Suppose an enclosed system, Figure \ref{fig:systemmodel} containing one \gls{bs} equipped with $M$ antennas and multiple $N$ \gls{mtc} \glspl{ue}. The agents communicate both in \gls{ul} and \gls{dl}. The channels between are Rician distributed \colr{[Ref]} with the following characteristics, Eq. \eqref{eq:channModel},
+\begin{equation}
+    {\bf h}_k = \beta_k\left(\sqrt{\frac{K}{K+1}}{\bf h}_{\rm LoS} + \sqrt{\frac{1}{K+1}}{\bf h}_{\rm NLoS}\right)
+    \label{eq:channModel}
+\end{equation}
+wherein the component ${\bf h}_{\rm LoS} \in \mathbb{C}^{N\times 1}$, Eq. \eqref{eq:LoSComponent}, is the deterministic \gls{los} component between the \gls{bs} and the \glspl{ue}, and $\boldsymbol{\nu}_{\rm NLoS} \in \mathcal{CN}^{N\times 1}$ is the Rayleigh distributed \gls{nlos} component. Hence,
+%
+\begin{equation}
+    \boldsymbol{h}_{\rm LoS} = [1, e^{j\phi }, \dots, e^{j\phi M-1}].
+    \label{eq:LoSComponent}
+\end{equation}
+}
+
+
+
+\section{Federated Learning assisted ...}
+\gpr{This research proposes an approach that integrates Federated Learning (FL) and Generative Artificial Intelligence (GenAI) with the goal of optimizing communication efficiency in distributed networks. To this end, we developed a simulated environment in which two local devices participate in a federated training process using synthetic data generated from semantic prompts.}\par
+
+\gpr{In our setup, we employ Conditional Generative Adversarial Networks (CGANs) to generate MNIST-like samples based on predefined labels. This allows each device to locally create its own training data, avoiding the need to share real data. Additionally, we explore the use of lightweight language models to generate synthetic textual data from natural language descriptions, using simple prompts manually created by us as a way to test and validate the proposed approach.}\par
+
+\colr{Descrever a técnica: como funciona a CGAN, como os devices vão treinar, qual o problems de otimização}
+
+\gpr{The simulation was implemented in Python using the TensorFlow library, with the federated aggregation process based on weight averaging (FedAvg). The goal is to evaluate how prompt-guided local data generation impacts the performance of the global model. This strategy aims to demonstrate the potential of controlled data generation as a viable solution for scenarios where sharing real data is restricted due to privacy, security, or availability concerns.}\par
+
+\bibliographystyle{IEEEtran} % choose bib style appropriately
+\bibliography{ref}
+\end{document}

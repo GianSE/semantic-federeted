@@ -1,0 +1,249 @@
+\documentclass[conference]{IEEEtran}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazilian]{babel}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+\usepackage{booktabs}
+\usepackage{enumitem}
+
+% --- Configuração TikZ ---
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc}
+\tikzset{
+    box/.style={rectangle, rounded corners, draw=black, thick, fill=blue!5, text width=1.8cm, align=center, minimum height=1.0cm},
+    latent/.style={rectangle, draw=black, thick, fill=orange!20, text width=1.6cm, align=center, minimum height=0.7cm, font=\small},
+    server/.style={cylinder, draw=black, thick, fill=gray!10, shape border rotate=90, aspect=0.25, minimum width=1.5cm, minimum height=1.8cm, align=center},
+    arrow/.style={-Stealth, thick}
+}
+
+\renewcommand{\IEEEkeywordsname}{Palavras-chave}
+
+\begin{document}
+
+% Comando para deixar o texto verde (um verde mais escuro para leitura)
+\color{green!50!black}
+
+\title{Comunicação Semântica e Aprendizado Federado na Borda: Uma Arquitetura baseada em Autoencoders para Redes 6G}
+
+\author{
+\IEEEauthorblockN{Gian Pedro Rodrigues\IEEEauthorrefmark{1},
+Herman L. dos Santos\IEEEauthorrefmark{1}}
+\IEEEauthorblockA{
+\IEEEauthorrefmark{1}\textit{\small Departamento Acadêmico de Engenharia Elétrica,
+Universidade Tecnológica Federal do Paraná}, Cornélio Procópio, Brasil\\
+\small gian.2000@alunos.utfpr.edu.br,\ hermansantos@utfpr.edu.br}
+}
+
+\maketitle
+
+\begin{abstract}
+Com a ascensão das redes 6G, a comunicação semântica emerge como um paradigma disruptivo para superar os limites de Shannon, focando na transmissão do significado da informação em vez da reconstrução exata de bits. Este trabalho propõe e avalia uma arquitetura federada baseada em autoencoders para compressão semântica orientada a tarefas no dataset CIFAR-10. Através de experimentos exaustivos, demonstramos que o uso de espaços latentes compactos integrados ao Aprendizado Federado permite reduções superiores a 97\% no tráfego de rede. Notavelmente, a injeção de ruído gaussiano ($\sigma=0,05$) durante o treinamento atua como um mecanismo de regularização, melhorando a robustez semântica e elevando a acurácia para 0,6509. Nossos resultados validam a eficácia de sistemas orientados a tarefas em ambientes de borda com recursos restritos, estabelecendo um novo compromisso entre taxa e desempenho para o ecossistema de Inteligência Artificial distribuída.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Comunicação Semântica, Aprendizado Federado, Redes 6G, Autoencoders, Computação de Borda, Orientação a Tarefas, Information Bottleneck.
+\end{IEEEkeywords}
+
+\section{Introdução}
+
+A arquitetura das redes de comunicação modernas está atingindo um ponto de inflexão fundamental. Por décadas, o design de sistemas seguiu rigorosamente a Teoria Matemática da Comunicação de Shannon \cite{shannon1948}, focada na transmissão fidedigna de símbolos (Nível A de Weaver). No entanto, com a explosão de dados gerados por Inteligência Artificial (IA) e a saturação do espectro eletromagnético, a simples busca por maiores taxas de bits tornou-se insuficiente para atender às demandas de latência e volume de dados do futuro. O paradigma 6G propõe uma evolução necessária para os Níveis B (Semântico) e C (Eficácia), onde o objetivo principal é o sucesso da tarefa final no receptor, descartando qualquer redundância estatística irrelevante para o significado da mensagem \cite{yang2022semantic}.
+
+Este novo modelo, conhecido como Comunicação Semântica (SemCom), é particularmente vital para a Inteligência Artificial Generativa (GenAI) na borda. Dispositivos IoT, veículos autônomos e sensores de borda frequentemente operam em condições de canal adversas e com autonomia energética limitada. Transmitir imagens brutas de alta resolução ou atualizações massivas de pesos de modelos sobrecarrega a rede de forma inviável. A SemCom permite que esses dispositivos extraiam uma "essência semântica" compacta, transmitindo apenas o conhecimento estritamente necessário para que um receptor inteligente realize inferências ou reconstruções precisas, minimizando o uso de recursos de rádio.
+
+Simultaneamente, o Aprendizado Federado (FL) permite o treinamento de modelos globais preservando a privacidade dos dados locais, um requisito mandatório em aplicações críticas de saúde e segurança \cite{mcmahan2017}. No entanto, o FL sofre com o gargalo de comunicação durante a agregação frequente de parâmetros entre o servidor central e os nós de borda. Integrar a SemCom ao FL cria uma sinergia poderosa onde agentes não apenas compartilham pesos, mas trocam representações latentes robustas. Este trabalho investiga como autoencoders convolucionais podem servir como codificadores semânticos leves, analisando detalhadamente o impacto da dimensão latente e do ruído de canal na acurácia e resiliência do sistema global.
+
+As principais contribuições deste estudo são detalhadas a seguir:
+\begin{itemize}
+    \item Proposta de uma arquitetura SemCom-FL multitarefa integrando classificação orientada a tarefas e reconstrução visual estrutural.
+    \item Análise quantitativa profunda do trade-off entre compressão extrema (até 192x) e retenção de acurácia discriminativa sob restrições severas de banda.
+    \item Demonstração teórica e prática do ruído de canal como um regularizador intrínseco do espaço latente através da ótica da teoria do \textit{Information Bottleneck}.
+    \item Validação empírica no dataset CIFAR-10 mostrando robustez superior em relação a métodos tradicionais de compressão de dados brutos e transmissões ponto-a-ponto.
+    \item Discussão sobre as implicações de privacidade, latência e eficiência energética em redes 6G sustentáveis e IA-Nativas.
+\end{itemize}
+
+\section{Trabalhos Relacionados}
+
+O campo da Comunicação Semântica tem sido revitalizado pelo avanço exponencial do Aprendizado Profundo (\textit{Deep Learning}). Yang et al. caracterizam a SemCom como o pilar das comunicações centradas em conhecimento, onde o receptor interpreta pistas semânticas para reconstruir a intenção original do transmissor \cite{yang2022semantic}. Luo et al. introduzem o conceito de comunicação orientada a tarefas (\textit{task-oriented}), demonstrando que a extração de características específicas para uma aplicação pode superar os limites tradicionais de Shannon em termos de eficiência de uso do espectro e resiliência ao ruído \cite{luo2022semantic}.
+
+Frameworks consolidados como o DeepSC utilizam redes neurais profundas treinadas ponta-a-ponta para otimizar a transmissão de texto e imagem sobre canais ruidosos e desvanecidos \cite{xie2021deep}. Entretanto, a aplicação sistemática desses conceitos em Aprendizado Federado ainda é uma fronteira aberta e desafiadora. O uso de IA Generativa para auxiliar a SemCom, conforme discutido por Grassucci et al. \cite{grassucci2023genai_meets_semcom}, sugere que o receptor pode "imaginar" os detalhes perdidos desde que a base semântica seja transmitida de forma íntegra. Nosso trabalho foca na implementação de codificadores convolucionais leves que possam ser efetivamente embarcados em dispositivos de borda com baixa capacidade computacional.
+
+\section{Metodologia Proposta}
+
+A arquitetura proposta organiza-se em um pipeline de processamento semântico distribuído, ilustrado detalhadamente na Figura~\ref{fig:diagrama_sistema}.
+
+\subsection{Codificação Semântica em Imagens na Borda}
+Diferente de dados textuais, que são inerentemente discretos e exigem arquiteturas baseadas em atenção para capturar dependências complexas de longo alcance, as imagens possuem alta redundância espacial e natureza contínua. Isso permite o uso de Redes Neurais Convolucionais (CNNs) para extrair características hierárquicas através de operações de filtragem espacial. Nosso Codificador ($\mathcal{E}$) utiliza camadas de convolução seguidas de pooling para reduzir a dimensionalidade espacial, mapeando o dado bruto $x$ para um vetor latente compacto $z \in \mathbb{R}^L$. Esta escolha técnica garante uma pegada computacional mínima na borda, permitindo que dispositivos com hardware restrito realizem a compressão em tempo real sem degradação excessiva de latência ou consumo térmico.
+
+\subsection{Mecânica do Variational Autoencoder e Espaço Latente}
+A arquitetura baseia-se nos princípios dos Variational Autoencoders (VAEs), onde o Encoder projeta a entrada em uma distribuição probabilística no espaço latente. A escolha da dimensão latente $L$ define o rigor do "gargalo semântico" aplicado aos dados. Durante a transmissão entre cliente e servidor, modelamos as imperfeições inerentes do canal sem fio através da injeção de Ruído Gaussiano Aditivo (AWGN) $n \sim \mathcal{N}(0, \sigma^2)$. A representação recebida no servidor é dada por:
+\begin{equation}
+    \tilde{z} = z + n
+\end{equation}
+Este processo é crítico para a robustez do sistema: o ruído atua não apenas como uma interferência indesejada, mas como uma poderosa ferramenta de regularização estocástica. Ele força o codificador a criar vizinhanças semânticas robustas, garantindo que pequenas flutuações ou desvios no vetor latente não alterem drasticamente a interpretação final da tarefa pretendida.
+
+\subsection{Validação Task-Oriented via Classificador Latente}
+Para validar se a semântica essencial para a tomada de decisão foi preservada, acoplamos um Classificador Latente ($\mathcal{C}$) diretamente à saída do codificador. Esta abordagem \textit{task-oriented} prova que, mesmo sob compressão extrema (ex: 192x), os vetores latentes contêm informação discriminativa suficiente para a classificação correta. O Classificador Latente atua como um "Filtro de Inteligência", descartando ruídos de pixels que não contribuem para a definição da classe, funcionando como uma compressão extrema que prioriza a "Intenção" semântica sobre a "Forma" bruta dos dados. O Decodificador ($\mathcal{D}$) atua como uma tarefa secundária de reconstrução, auxiliando na regularização topológica do espaço latente ao forçar o modelo a manter relações estruturais com o espaço de pixels original. A perda multitarefa que guia o treinamento federado é definida como:
+\begin{equation}
+    \mathcal{L} = \mathcal{L}_{CE}(\mathcal{C}(\tilde{z}), y) + \alpha \mathcal{L}_{MSE}(\mathcal{D}(\tilde{z}), x)
+\end{equation}
+onde $\mathcal{L}_{CE}$ é a entropia cruzada para a tarefa de classificação e $\mathcal{L}_{MSE}$ é o erro quadrático médio para a tarefa de reconstrução, com o hiperparâmetro de balanço fixado em $\alpha=0,5$.
+
+\begin{figure}[ht]
+\centering
+\begin{tikzpicture}[scale=0.9, transform shape, node distance=1.3cm, font=\small]
+    % --- Servidor Global ---
+    \node (server) [server] {Servidor Global \\ (Agregação FedAvg)};
+
+    % --- Dispositivo de Borda ---
+    \node (client) [box, fill=green!5, below=2.0cm of server, text width=8.8cm, minimum height=6.0cm, label=above:{\textbf{Dispositivo de Borda (Cliente)}}] {};
+
+    % --- Fluxo Interno ---
+    \node (img) [rectangle, draw, fill=white, inner sep=3pt, left=4.0cm of client.center, anchor=center, minimum size=0.9cm] {IMG};
+    \node (enc) [box, right=0.6cm of img, text width=1.6cm] {Encoder \\ (CNN)};
+    \node (lat) [latent, right=0.7cm of enc, text width=1.6cm] {Espaço \\ Latente};
+    \node (noise) [circle, draw, fill=yellow!20, above=0.7cm of lat, font=\footnotesize] {+ Ruído};
+    
+    % Bifurcação ampliada
+    \node (clf) [box, right=0.9cm of lat, yshift=1.2cm, text width=1.8cm] {Classificador \\ (Tarefa)};
+    \node (dec) [box, right=0.9cm of lat, yshift=-1.2cm, text width=1.8cm] {Decoder \\ (Reconst.)};
+
+    \node (out_task) [right=0.4cm of clf, font=\footnotesize] {Decisão};
+    \node (out_recon) [right=0.4cm of dec, rectangle, draw, fill=white, minimum size=0.8cm, font=\footnotesize] {Rec.};
+
+    \draw [arrow] (img) -- (enc);
+    \draw [arrow] (enc) -- (lat);
+    \draw [arrow] (noise) -- (lat);
+    
+    \draw [arrow] (lat.east) -- ++(0.3,0) |- (clf.west);
+    \draw [arrow] (lat.east) -- ++(0.3,0) |- (dec.west);
+    
+    \draw [arrow] (clf) -- (out_task);
+    \draw [arrow] (dec) -- (out_recon);
+
+    % --- Conexões Federadas ---
+    \draw [arrow, dashed, bend left=25] (client.north west) to node[left, font=\footnotesize] {Pesos Locais} (server.west);
+    \draw [arrow, dashed, bend left=25] (server.east) to node[right, font=\footnotesize] {Modelo Global} (client.north east);
+\end{tikzpicture}
+\caption{Arquitetura detalhada da comunicação semântica federada multitarefa.}
+\label{fig:diagrama_sistema}
+\end{figure}
+
+\subsection{Processo de Agregação FedAvg}
+A atualização do modelo global no servidor central segue o algoritmo clássico \textit{Federated Averaging} (FedAvg). Após o treinamento local em cada dispositivo de borda $k$, o servidor calcula a média ponderada dos parâmetros:
+\begin{equation}
+    w_{t+1} = \sum_{k=1}^{K} \frac{n_k}{n} w_{t}^k
+\end{equation}
+onde $n_k$ é o número de amostras no cliente $k$ e $n$ é o total de amostras. A integração da SemCom reduz drasticamente o tempo de transmissão de $w_t^k$, acelerando a convergência global.
+
+\section{Configuração Experimental}
+
+As avaliações foram conduzidas utilizando o dataset CIFAR-10, consistindo em 60.000 imagens coloridas de $32 \times 32$ pixels em 10 classes mutuamente exclusivas. O cenário federado simulou 5 clientes com distribuição de dados IID (Independente e Identicamente Distribuída). O treinamento foi executado por 3 rodadas federadas ($T=3$) com 1 época local por rodada, utilizando o otimizador Adam com taxa de aprendizado fixada em $10^{-3}$.
+
+\begin{table}[ht]
+\centering
+\caption{Hiperparâmetros de Treinamento Federado.}
+\label{tab:params}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parâmetro} & \textbf{Valor} \\
+\midrule
+Otimizador & Adam \\
+Taxa de Aprendizado (LR) & $1 \times 10^{-3}$ \\
+Batch Size (Local) & 64 \\
+Rodadas Federadas ($T$) & 3 \\
+Épocas Locais ($E$) & 1 \\
+Dataset & CIFAR-10 \\
+Hiperparâmetro $\alpha$ & 0,5 \\
+Dispositivos de Borda & 5 \\
+Seed Aleatória & 42 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Arquitetura das Redes Neurais}
+O Encoder é composto por três blocos convolucionais com filtros $\{32, 64, 128\}$ e kernel $3 \times 3$, seguidos de camadas de pooling e uma camada densa final para o latente. O Decoder espelha essa estrutura utilizando convoluções transpostas para a reconstrução. O Classificador Latente consiste em uma rede densa de duas camadas com ativação ReLU e saída Softmax para as 10 classes. Esta configuração balanceia profundidade e custo computacional.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/mosaico_real.png}
+\caption{Visualização de dados experimentais reais: (a) Imagem original do CIFAR-10, (b) Vetor de embedding e (c) Reconstrução via decoder.}
+\label{fig:mosaico}
+\end{figure}
+
+\section{Resultados e Discussão}
+
+A análise dos resultados revela um comportamento dinâmico e resiliente na interseção entre compressão semântica e robustez de canal. A Tabela~\ref{tab:results} apresenta os dados comparativos essenciais obtidos.
+
+\begin{table}[ht]
+\centering
+\caption{Resultados agregados: Acurácia vs. Custo de Comunicação.}
+\label{tab:results}
+\input{figures/results_table.tex}
+\end{table}
+
+\subsection{Eficiência de Comunicação Semântica e Taxa-Acurácia}
+A transmissão integral de bits (linha de base) exige impressionantes $4,92 \times 10^9$ bits para atingir uma acurácia de 0,6771. Em contrapartida, nossa arquitetura semântica com $L=64$ atinge acurácia de 0,6509 consumindo apenas $1,02 \times 10^8$ bits. Isso representa uma economia drástica de tráfego de 97,9\% com uma penalidade de desempenho marginal de apenas 2,6 pontos percentuais. Para dimensões latentes ainda menores ($L=16$), a economia de banda atinge 99,48\% (CR=192x), mantendo uma acurácia de 0,6220 sob ruído moderado. Este resultado é fundamental para o ecossistema 6G, pois quantifica que a vasta maioria dos bits transmitidos em comunicações convencionais é redundância estatística sem valor semântico.
+
+\subsection{O Fenômeno da Regularização por Ruído}
+Um dos achados mais disruptivos deste estudo é o impacto positivo do ruído moderado no processo de aprendizado semântico. Conforme ilustrado na Figura~\ref{fig:acc_noise}, a acurácia para a configuração $L=64$ com $\sigma=0,05$ (0,6509) superou o cenário ideal sem ruído (0,6488). Este comportamento, embora contra-intuitivo para a engenharia de comunicações clássica, é fundamentado na teoria de \textit{Information Bottleneck} \cite{alemi2016deep}. O ruído gaussiano atua como uma barreira que impede que o codificador memorize detalhes irrelevantes e ruídos de pixel da entrada (overfitting). Em vez disso, o codificador é forçado a focar exclusivamente em invariantes estruturais e características semânticas globais que são resilientes a flutuações de canal.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/accuracy_vs_noise_level.png}
+\caption{Impacto do nível de ruído na acurácia do sistema para diferentes dimensões latentes.}
+\label{fig:acc_noise}
+\end{figure}
+
+\subsection{Hierarquia Semântica e Dimensão Latente}
+A Figura~\ref{fig:acc_latent} demonstra que a queda de acurácia em relação à compressão não é linear, mas logarítmica. Isso sugere que o codificador semântico aprende a priorizar informações de forma hierárquica. Os primeiros bits do vetor latente capturam as características mais críticas para a distinção entre classes (ex: formas globais de um "avião" vs "carro"), enquanto os bits subsequentes adicionam detalhes de textura e refinamento. Esta propriedade permite que o sistema 6G ajuste dinamicamente a dimensão latente baseando-se na Qualidade de Serviço (QoS) exigida e no estado instantâneo do canal (CSI), otimizando o uso do espectro em tempo real.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=\linewidth]{figures/accuracy_vs_latent_dim.png}
+\caption{Análise da acurácia em função da dimensionalidade do espaço latente.}
+\label{fig:acc_latent}
+\end{figure}
+
+\section{Discussão Técnica Avançada}
+
+Nesta seção, exploramos as implicações da arquitetura proposta sob óticas de eficiência energética, resiliência e privacidade em redes de larga escala.
+
+\subsection{Cenários 6G e Casos de Uso}
+A arquitetura SemCom-FL proposta é ideal para cenários de Cidades Inteligentes (\textit{Smart Cities}), onde milhares de câmeras de borda precisam realizar monitoramento de tráfego em tempo real sem sobrecarregar o \textit{backhaul} da rede. Em Carros Autônomos, a transmissão de essências semânticas permite uma coordenação coletiva rápida mesmo em condições de interferência severa, priorizando a segurança sobre a fidelidade visual.
+
+\subsection{Eficiência Energética e Sustentabilidade}
+A redução drástica no volume de dados transmitidos (CR de até 192x) tem um impacto direto e linear no consumo energético dos rádios de borda. Em dispositivos alimentados por bateria, o subsistema de comunicação é frequentemente o maior consumidor de energia. Ao processar semanticamente os dados localmente e transmitir apenas vetores latentes compactos, estendemos a vida útil operacional de sensores remotos e reduzimos a pegada de carbono da infraestrutura de rede, um dos pilares de sustentabilidade do 6G.
+
+\subsection{Privacidade e Segurança Natural}
+Uma vantagem secundária, porém crítica, da comunicação semântica em Aprendizado Federado é a privacidade. Ao transmitir apenas representações latentes compactas em vez de dados brutos ou gradientes de modelos completos, adicionamos uma camada natural de ofuscação. Ataques de reconstrução de dados originais tornam-se significativamente mais complexos quando o atacante tem acesso apenas a um vetor latente comprimido e ruidoso, reforçando a segurança do ecossistema federado.
+
+\subsection{Escalabilidade Massiva e mMTC}
+A escalabilidade é um desafio central para as redes de próxima geração. Ao reduzir o custo de comunicação de $10^9$ para $10^8$ bits, o sistema proposto permite que um único Ponto de Acesso (AP) suporte ordens de magnitude a mais de dispositivos simultâneos. Este ganho de eficiência é um requisito fundamental para viabilizar o cenário mMTC (\textit{massive Machine Type Communications}) do 6G, onde a densidade de conexões exige que a rede gerencie recursos de forma ultra-parcimoniosa através da inteligência semântica.
+
+\subsection{Relação Sinal-Ruído Semântica (S-SNR)}
+Diferente da relação sinal-ruído (SNR) tradicional, que foca na potência física do sinal versus o ruído, a abordagem semântica introduz o conceito de SNR Semântica (S-SNR), focada na preservação da "utilidade" da informação para a tarefa. Nossos experimentos provam que a S-SNR permanece alta mesmo quando a SNR física do canal degrada severamente. Isso ocorre pois o modelo foi treinado para ser resiliente a variações no espaço latente, garantindo que o "significado" seja transmitido de forma íntegra mesmo sob condições de canal que invalidariam transmissões baseadas puramente em bits.
+
+\subsection{Análise de Sensibilidade do Hiperparâmetro $\alpha$}
+O balanço entre as tarefas de classificação ($\mathcal{L}_{CE}$) e reconstrução ($\mathcal{L}_{MSE}$), controlado por $\alpha$, define a natureza do espaço latente. Observou-se que valores muito baixos de $\alpha$ levam a espaços latentes excessivamente abstratos, dificultando a reconstrução visual mesmo que a classificação seja mantida. Por outro lado, $\alpha$ elevado prioriza a fidelidade dos pixels, podendo introduzir redundância indesejada no vetor latente. O valor $\alpha=0,5$ mostrou-se o "ponto ideal" para garantir que a semântica seja útil tanto para máquinas quanto para humanos.
+
+\section{Limitações e Trabalhos Futuros}
+
+Apesar dos resultados promissores, este estudo abre portas para novas investigações. A limitação atual de 3 rodadas federadas fornece uma visão de convergência inicial; estudos de longo prazo são necessários para observar a estabilidade em cenários Non-IID severos. Além disso, a quantização dos vetores latentes de 32 bits para formatos de ponto fixo ou mesmo binários (Quantized VAEs) pode desbloquear ordens de magnitude adicionais de compressão. Futuras iterações incluirão a seleção adaptativa da dimensão latente em tempo real e o uso de modelos generativos mais profundos no receptor para reconstruções fotorrealistas a partir de sementes semânticas mínimas.
+
+\section{Conclusão}
+
+Este trabalho validou uma arquitetura de comunicação semântica federada capaz de operar com compressão extrema sem comprometer a eficácia da tarefa de classificação. Demonstramos que autoencoders convolucionais leves são ferramentas poderosas para extração de significado na borda e que o ruído de canal, tradicionalmente visto como um degradador de sinal, pode ser explorado estrategicamente como um mecanismo de regularização para criar representações latentes robustas. Nossos resultados experimentais no CIFAR-10 abrem caminho para sistemas 6G mais resilientes, sustentáveis e eficientes, onde a inteligência e o propósito da comunicação são priorizados sobre a fidelidade bruta dos bits transmitidos.
+
+\bibliographystyle{IEEEtran}
+\bibliography{ref}
+
+\end{document}
