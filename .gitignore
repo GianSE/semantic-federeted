@@ -57,6 +57,42 @@ Thumbs.db
 # =========================
 *.tmp
 *.temp
-data
-skills
-docs
+data/
+skills/
+
+# =========================
+# LaTeX build artifacts (docs/)
+# =========================
+docs/**/*.aux
+docs/**/*.bbl
+docs/**/*.blg
+docs/**/*.log
+docs/**/*.out
+docs/**/*.pdf
+docs/**/*.fls
+docs/**/*.fdb_latexmk
+docs/**/*.synctex.gz
+docs/**/*.synctex(busy)
+
+# =========================
+# Literature PDFs (too large for git)
+# =========================
+docs/literature/pdfs/
+docs/literature/referencia/
+docs/literature/referencias_vetorizadas/
+
+# =========================
+# Generated figures/images in docs
+# (keep only source .tex and .bib)
+# =========================
+docs/overleaf/diagrama_sistema.png
+docs/overleaf/mosaico_real.png
+docs/overleaf/mosaico_reconstrucao.png
+docs/paper/diagrama_sistema.png
+docs/paper/mosaico_real.png
+docs/paper/mosaico_reconstrucao.png
+
+# =========================
+# Prompt / scratch files
+# =========================
+prompt_make_paper.md
