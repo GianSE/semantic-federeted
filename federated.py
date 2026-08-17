@@ -75,12 +75,10 @@ def federated_train(
     optimizer_fn: Callable,
     train_step_fn: Callable,
     eval_step_fn: Callable,
-    comm_cost_fn: Callable[[int, int], int],
     device: torch.device,
     show_progress: bool = True,
-) -> Tuple[nn.Module, List[Dict[str, float]], int]:
+) -> Tuple[nn.Module, List[Dict[str, float]]]:
     history = []
-    total_comm_bits = 0
 
     round_iter = range(rounds)
     if show_progress:
@@ -105,7 +103,6 @@ def federated_train(
             round_metrics.append(metrics)
             client_states.append(client_model.state_dict())
             client_sizes.append(len(loader.dataset))
-            total_comm_bits += comm_cost_fn(client_id, len(loader.dataset))
 
         avg_round_metrics = average_metrics(round_metrics)
         avg_state = average_state_dicts(client_states, client_sizes)
@@ -127,4 +124,4 @@ def federated_train(
             elif loss_value is not None:
                 tqdm.write(f"Round {round_idx + 1}: loss={loss_value:.4f}")
 
-    return global_model, history, total_comm_bits
+    return global_model, history

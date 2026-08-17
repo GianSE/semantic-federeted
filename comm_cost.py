@@ -39,36 +39,12 @@ def model_update_bits(model: torch.nn.Module, bits_per_value: int = 32) -> int:
     return total_params * bits_per_value
 
 
-def raw_input_bits_total(
-    dataset_name: str,
-    num_samples: int,
-    bits_per_value: int = 32,
-) -> int:
-    return raw_input_bits_per_sample(dataset_name, bits_per_value) * num_samples
-
-
-def latent_bits_total(
-    latent_dim: int,
-    num_samples: int,
-    bits_per_value: int = 32,
-) -> int:
-    return latent_bits_per_sample(latent_dim, bits_per_value) * num_samples
-
-
 def total_raw_bits(dataset_name: str, num_samples: int, bits_per_value: int = 32) -> int:
     return input_dim_values(dataset_name) * num_samples * bits_per_value
 
 
 def total_latent_bits(latent_dim: int, num_samples: int, bits_per_value: int = 32) -> int:
     return latent_dim * num_samples * bits_per_value
-
-
-def model_update_bits_per_round(
-    model: torch.nn.Module,
-    bits_per_value: int = 32,
-) -> int:
-    # Uplink + downlink payload for full model update.
-    return model_update_bits(model, bits_per_value) * 2
 
 
 def compression_ratio(raw_bits: int, compressed_bits: int) -> float:

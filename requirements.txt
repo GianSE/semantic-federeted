@@ -1,7 +1,9 @@
-torch
-torchvision
-numpy
-pandas
-matplotlib
-scikit-learn
-tqdm
+# Versoes fixadas para reprodutibilidade (testado em Python 3.14, Windows, CPU).
+# Para GPU, instale torch/torchvision pelo indice CUDA correspondente:
+#   pip install torch==2.13.0 torchvision==0.28.0 --index-url https://download.pytorch.org/whl/cu124
+torch==2.13.0
+torchvision==0.28.0
+numpy==2.5.2
+pandas==3.0.5
+matplotlib==3.11.1
+tqdm==4.70.0

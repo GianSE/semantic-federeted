@@ -100,15 +100,44 @@ def plot_accuracy_vs_noise(df: pd.DataFrame, out_dir: str) -> None:
     plt.close()
 
 
-def generate_plots(results_csv: str, out_dir: str) -> None:
-    df = pd.read_csv(results_csv)
+def plot_accuracy_vs_round(history_csv: str, out_dir: str) -> None:
+    """Curva de convergência federada: acurácia de teste por rodada."""
+    if not os.path.isfile(history_csv):
+        return
+    hist = pd.read_csv(history_csv)
+    if hist.empty or "eval_accuracy" not in hist.columns:
+        return
+
+    _ensure_dir(out_dir)
+    for dataset, ds_group in hist.groupby("dataset"):
+        plt.figure()
+        for run_id, run_group in ds_group.groupby("run_id"):
+            run_group = run_group.sort_values("round")
+            row = run_group.iloc[0]
+            if row.get("model") == "baseline":
+                label = "baseline"
+            else:
+                label = fr"$L={int(row['latent_dim'])}$, $\sigma={row['noise_level']}$"
+            plt.plot(run_group["round"], run_group["eval_accuracy"], marker="o", label=label)
+        plt.xlabel("Rodada Federada ($t$)")
+        plt.ylabel("Acurácia de Teste")
+        plt.grid(True)
+        plt.legend(fontsize=7)
+        plt.tight_layout()
+        plt.savefig(os.path.join(out_dir, f"accuracy_vs_round_{dataset}.png"))
+        plt.close()
+
+
+def generate_plots(data_dir: str, out_dir: str) -> None:
+    df = pd.read_csv(os.path.join(data_dir, "experiment_results.csv"))
     # Ordenar por valores para o plot não ficar "vai e volta"
     df = df.sort_values(by=["dataset", "latent_dim", "noise_level"])
     plot_accuracy_vs_compression(df, out_dir)
     plot_accuracy_vs_latent_dim(df, out_dir)
     plot_comm_cost_vs_latent_dim(df, out_dir)
     plot_accuracy_vs_noise(df, out_dir)
+    plot_accuracy_vs_round(os.path.join(data_dir, "history.csv"), out_dir)
 
 
 if __name__ == "__main__":
-    generate_plots("./results/data/experiment_results.csv", "./results/plots")
+    generate_plots("./results/data", "./results/plots")

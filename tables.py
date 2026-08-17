@@ -5,8 +5,12 @@ import pandas as pd
 
 COLUMNS = [
     "dataset",
+    "model",
     "latent_dim",
     "noise_level",
+    "num_clients",
+    "rounds",
+    "seed",
     "accuracy_baseline",
     "accuracy_compressed",
     "compression_ratio",
@@ -17,7 +21,8 @@ COLUMNS = [
 def generate_tables(results_csv: str, out_dir: str) -> None:
     os.makedirs(out_dir, exist_ok=True)
     df = pd.read_csv(results_csv)
-    df = df[COLUMNS]
+    # Tolera colunas ausentes: a grade evolui entre fases do projeto.
+    df = df[[c for c in COLUMNS if c in df.columns]]
 
     csv_path = os.path.join(out_dir, "results_table.csv")
     df.to_csv(csv_path, index=False)

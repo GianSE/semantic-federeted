@@ -4,11 +4,13 @@ from typing import Dict
 import torch
 from torch import nn
 
-from compression import model_update_bits_per_round, total_raw_bits
+from comm_cost import total_raw_bits
 from data import get_federated_dataloaders
+from device import get_device, loader_kwargs
 from federated import federated_train, set_seed
 from metrics import accuracy_from_logits
 from model_classifier import build_classifier
+from save_results import save_run
 
 
 def _train_step_fn(loss_fn: nn.Module):
@@ -45,7 +47,7 @@ def _eval_step_fn(loss_fn: nn.Module):
 
 def run_baseline(config: Dict) -> Dict:
     set_seed(config["seed"])
-    device = torch.device("cpu")
+    device = get_device(config.get("device", "auto"))
 
     client_loaders, test_loader = get_federated_dataloaders(
         dataset_name=config["dataset"],
@@ -53,28 +55,17 @@ def run_baseline(config: Dict) -> Dict:
         batch_size=config["batch_size"],
         test_batch_size=config["test_batch_size"],
         seed=config["seed"],
+        train_fraction=config.get("train_fraction", 1.0),
+        **loader_kwargs(device, config.get("num_workers", 0)),
     )
 
     model = build_classifier(dataset_name=config["dataset"], input_type="raw")
     model.to(device)
 
     loss_fn = nn.CrossEntropyLoss()
-
-    if config["baseline_comm_mode"] == "model":
-        bits_per_client_round = model_update_bits_per_round(model)
-
-        def comm_cost_fn(_client_id, _num_samples):
-            return bits_per_client_round
-    elif config["baseline_comm_mode"] == "raw":
-
-        def comm_cost_fn(_client_id, _num_samples):
-            return 0
-    else:
-        raise ValueError("baseline_comm_mode must be 'model' or 'raw'")
-
     optimizer_fn = lambda params: torch.optim.Adam(params, lr=config["lr"])
 
-    _, history, _ = federated_train(
+    _, history = federated_train(
         global_model=model,
         client_loaders=client_loaders,
         test_loader=test_loader,
@@ -83,31 +74,22 @@ def run_baseline(config: Dict) -> Dict:
         optimizer_fn=optimizer_fn,
         train_step_fn=_train_step_fn(loss_fn),
         eval_step_fn=_eval_step_fn(loss_fn),
-        comm_cost_fn=comm_cost_fn,
         device=device,
-        show_progress=True,
+        show_progress=config.get("show_progress", True),
     )
 
     total_samples = sum(len(loader.dataset) for loader in client_loaders)
-    if config["baseline_comm_mode"] == "raw":
-        total_comm_bits = total_raw_bits(config["dataset"], total_samples)
-    else:
-        total_comm_bits = bits_per_client_round * len(client_loaders)
-
     final_eval = history[-1]
-    result = {
-        "dataset": config["dataset"],
-        "latent_dim": None,
-        "noise_level": 0.0,
-        "baseline_comm_mode": config["baseline_comm_mode"],
+    metrics = {
         "accuracy_baseline": final_eval["eval_accuracy"],
         "accuracy_compressed": None,
         "classification_loss": final_eval["eval_loss"],
         "reconstruction_loss": None,
         "compression_ratio": 1.0,
-        "communication_cost_bits": total_comm_bits,
+        "communication_cost_bits": total_raw_bits(config["dataset"], total_samples),
+        "total_samples": total_samples,
     }
-    return result
+    return {"metrics": metrics, "history": history, "device": str(device)}
 
 
 def build_arg_parser():
@@ -120,16 +102,22 @@ def build_arg_parser():
     parser.add_argument("--test-batch-size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--baseline-comm-mode", type=str, choices=["model", "raw"], default="model")
+    parser.add_argument("--train-fraction", type=float, default=1.0)
+    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--runs-dir", type=str, default="./results/runs")
     return parser
 
 
 def main():
-    parser = build_arg_parser()
-    args = parser.parse_args()
+    args = build_arg_parser().parse_args()
     config = vars(args)
+    runs_dir = config.pop("runs_dir")
+    config["model"] = "baseline"
+
     result = run_baseline(config)
-    print(result)
+    save_run(runs_dir, config, result["metrics"], result["history"], result["device"])
+    print(result["metrics"])
 
 
 if __name__ == "__main__":

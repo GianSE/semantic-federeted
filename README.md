@@ -89,8 +89,9 @@ Onde `α = 0.5` balanceia classificação e reconstrução.
 
 ### 1. Pré-requisitos
 
-- **Python 3.8+**
+- **Python 3.10+** (testado em 3.14)
 - **pip** (gerenciador de pacotes)
+- GPU **opcional** — todo o pipeline roda em CPU (ver perfis de execução abaixo)
 
 ### 2. Instalar dependências
 
@@ -116,8 +117,49 @@ As dependências são:
 | `numpy`        | Operações numéricas                 |
 | `pandas`       | Manipulação de dados tabulares      |
 | `matplotlib`   | Geração de gráficos acadêmicos     |
-| `scikit-learn` | Métricas auxiliares                 |
 | `tqdm`         | Barras de progresso                 |
+
+As versões estão **fixadas** no `requirements.txt`. Para GPU, instale
+`torch`/`torchvision` pelo índice CUDA correspondente (ver comentário no arquivo).
+
+### 2.1. CPU ou GPU
+
+Todos os scripts aceitam `--device`:
+
+```bash
+python main.py --device auto   # padrão: usa CUDA se disponível, senão CPU
+python main.py --device cpu    # força CPU
+python main.py --device cuda   # força GPU (erro explícito se indisponível)
+```
+
+Com GPU, `--num-workers 4` costuma ser o ganho maior (o padrão `0` é gargalo).
+
+> Resultados **não** são bit-idênticos entre CPU e CUDA. O dispositivo usado fica
+> registrado em cada run; fixe um único dispositivo para os números do artigo.
+
+### 2.2. Perfis de execução
+
+| Perfil | Comando | Custo aprox. (CPU) | Uso |
+|--------|---------|--------------------|-----|
+| `smoke` | `python main.py --datasets mnist --latent-dims 16 --noise-levels 0.0 --num-clients 2 --rounds 2 --train-fraction 0.02` | ~15 s | validar o pipeline |
+| `dev` | `python main.py --datasets cifar10 --latent-dims 16 64 --noise-levels 0.0 0.05 --num-clients 5 --rounds 5` | ~1–2 h | verificar tendências |
+| `paper` | grade completa (ver seção de reprodução) | GPU recomendada | números finais |
+
+`--train-fraction` subamostra o conjunto de treino, permitindo rodadas rápidas
+sem alterar a estrutura do experimento.
+
+### 2.3. Execuções retomáveis
+
+Cada configuração vira um arquivo em `results/runs/<hash>.json`, nomeado por um
+hash determinístico da configuração. Consequências práticas:
+
+- Rodar o mesmo comando duas vezes **não refaz nada** e produz CSVs idênticos.
+- Uma grade longa pode ser acumulada em várias sessões — ou migrada para GPU sem
+  refazer o que já rodou (o dispositivo não entra no hash).
+- `--force` refaz runs existentes; `--export-only` só reconstrói CSVs e figuras.
+
+Os CSVs agregados são sempre **reconstruídos** a partir dos runs em disco, nunca
+por append.
 
 ### 3. Executar os experimentos completos
 
@@ -154,8 +196,8 @@ python main.py --datasets cifar10 --rounds 5 --num-clients 10
 # Variar apenas o ruído para L=64
 python main.py --datasets cifar10 --latent-dims 64 --noise-levels 0.0 0.01 0.05 0.1 0.2
 
-# Definir um orçamento fixo de comunicação (em bits)
-python main.py --fixed-comm-budget 100000000
+# Múltiplas seeds (para média e desvio-padrão nas figuras)
+python main.py --datasets cifar10 --seeds 42 43 44
 ```
 
 ### 5. Scripts individuais
