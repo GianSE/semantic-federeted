@@ -42,7 +42,14 @@ def build_arg_parser():
         help="SNRs de avaliacao em dB. 'match' avalia na mesma SNR do treino "
         "(varios valores geram a matriz de mismatch treino x teste).",
     )
-    parser.add_argument("--channel", type=str, default="awgn", choices=["awgn"])
+    parser.add_argument(
+        "--channels", type=str, nargs="+", default=["awgn"],
+        choices=["awgn", "rayleigh", "rician"],
+    )
+    parser.add_argument(
+        "--rician-k-db", type=float, default=10.0,
+        help="Fator K de Rice em dB, usado quando 'rician' esta entre --channels.",
+    )
     parser.add_argument(
         "--latent-bits",
         type=int,
@@ -92,21 +99,25 @@ def build_grid(args) -> List[Dict]:
             configs.append({**base, "model": "baseline"})
             for latent_dim in args.latent_dims:
                 for latent_bits in args.latent_bits:
-                    for snr_train in args.snr_train_db:
-                        for snr_test in args.snr_test_db:
-                            configs.append(
-                                {
-                                    **base,
-                                    "model": "compressed",
-                                    "latent_dim": latent_dim,
-                                    "latent_bits": latent_bits,
-                                    "snr_train_db": snr_train,
-                                    "snr_test_db": resolve_test_snr(snr_test, snr_train),
-                                    "channel": args.channel,
-                                    "dropout_p": args.dropout_p,
-                                    "alpha": args.alpha,
-                                }
-                            )
+                    for channel in args.channels:
+                        for snr_train in args.snr_train_db:
+                            for snr_test in args.snr_test_db:
+                                configs.append(
+                                    {
+                                        **base,
+                                        "model": "compressed",
+                                        "latent_dim": latent_dim,
+                                        "latent_bits": latent_bits,
+                                        "channel": channel,
+                                        "rician_k_db": (
+                                            args.rician_k_db if channel == "rician" else None
+                                        ),
+                                        "snr_train_db": snr_train,
+                                        "snr_test_db": resolve_test_snr(snr_test, snr_train),
+                                        "dropout_p": args.dropout_p,
+                                        "alpha": args.alpha,
+                                    }
+                                )
     # A sentinela 'match' pode gerar duplicatas quando combinada com valores
     # explicitos (ex.: --snr-test-db match 10 com --snr-train-db 10).
     seen, unique = set(), []
@@ -131,7 +142,10 @@ def main():
             if label == "compressed":
                 snr_tr, snr_te = config["snr_train_db"], config["snr_test_db"]
                 fmt = lambda v: "ideal" if v is None else f"{v:g}dB"
-                label += f" L={config['latent_dim']} SNR_tr={fmt(snr_tr)} SNR_te={fmt(snr_te)}"
+                label += (
+                    f" L={config['latent_dim']} {config['channel']}"
+                    f" SNR_tr={fmt(snr_tr)} SNR_te={fmt(snr_te)}"
+                )
             print(f"\n[{index}/{len(pending)}] {config['dataset']} seed={config['seed']} {label} ({run_id(config)})")
 
             runner = run_baseline if config["model"] == "baseline" else run_compressed

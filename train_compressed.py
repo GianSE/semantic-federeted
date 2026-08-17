@@ -43,12 +43,13 @@ class CompressedModel(nn.Module):
         training: bool,
         channel: str = "awgn",
         latent_bits: Optional[int] = None,
+        rician_k_db: Optional[float] = None,
     ):
         # Transmissor: codifica, normaliza a potencia e quantiza para o formato
         # efetivamente transmitido (e contabilizado em bits).
         z = normalize_power(self.autoencoder.encode(x))
         z = quantize_latent(z, latent_bits)
-        z_hat = apply_channel(z, snr_db, channel=channel)
+        z_hat = apply_channel(z, snr_db, channel=channel, rician_k_db=rician_k_db)
         z_hat = apply_dropout_noise(z_hat, dropout_p, training=training)
         # Classificador e decoder estao no receptor: ambos operam sobre o
         # latente efetivamente recebido (z_hat), conforme a Eq. (2) do artigo.
@@ -65,6 +66,7 @@ def _step_fn(
     dropout_p: float,
     channel: str,
     latent_bits: Optional[int],
+    rician_k_db: Optional[float],
     training: bool,
 ):
     def step(model, batch, device):
@@ -73,7 +75,7 @@ def _step_fn(
         targets = targets.to(device)
         _, _, logits, recon = model(
             inputs, snr_db, dropout_p, training=training,
-            channel=channel, latent_bits=latent_bits,
+            channel=channel, latent_bits=latent_bits, rician_k_db=rician_k_db,
         )
         classification_loss = loss_fn(logits, targets)
         reconstruction_loss = recon_loss_fn(recon, inputs)
@@ -114,9 +116,11 @@ def run_compressed(config: Dict) -> Dict:
 
     channel = config.get("channel", "awgn")
     latent_bits = config.get("latent_bits")
+    rician_k_db = config.get("rician_k_db")
     common = (loss_fn, recon_loss_fn, config["alpha"])
-    train_args = (*common, config["snr_train_db"], config["dropout_p"], channel, latent_bits)
-    eval_args = (*common, config["snr_test_db"], config["dropout_p"], channel, latent_bits)
+    tail = (config["dropout_p"], channel, latent_bits, rician_k_db)
+    train_args = (*common, config["snr_train_db"], *tail)
+    eval_args = (*common, config["snr_test_db"], *tail)
 
     _, history = federated_train(
         global_model=model,
@@ -168,7 +172,14 @@ def build_arg_parser():
         default="match",
         help="SNR na avaliacao. 'match' usa a mesma do treino.",
     )
-    parser.add_argument("--channel", type=str, default="awgn", choices=["awgn"])
+    parser.add_argument(
+        "--channel", type=str, default="awgn",
+        choices=["awgn", "rayleigh", "rician"],
+    )
+    parser.add_argument(
+        "--rician-k-db", type=float, default=None,
+        help="Fator K de Rice em dB (apenas para --channel rician).",
+    )
     parser.add_argument(
         "--latent-bits",
         type=int,

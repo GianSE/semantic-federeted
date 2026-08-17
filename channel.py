@@ -127,18 +127,98 @@ def quantize_latent(
     return indices * step - clip
 
 
+def _to_complex(z: torch.Tensor) -> torch.Tensor:
+    """Empareha dimensoes reais adjacentes em simbolos complexos."""
+    if z.shape[1] % 2 != 0:
+        raise ValueError(
+            f"Canais com desvanecimento exigem dimensao latente par (recebido L={z.shape[1]}), "
+            "pois o latente e mapeado em simbolos complexos."
+        )
+    return torch.complex(z[:, 0::2], z[:, 1::2])
+
+
+def _to_real(z_complex: torch.Tensor) -> torch.Tensor:
+    """Inversa de `_to_complex`, preservando a ordem [re0, im0, re1, im1, ...]."""
+    return torch.stack([z_complex.real, z_complex.imag], dim=-1).reshape(z_complex.shape[0], -1)
+
+
+def _sample_fading(
+    batch_size: int,
+    k_factor: Optional[float],
+    device: torch.device,
+    dtype: torch.dtype,
+) -> torch.Tensor:
+    """Coeficiente de canal h com E[|h|^2] = 1, um por amostra (block fading).
+
+    `k_factor` e o fator K de Rice em escala linear:
+      - None  -> Rayleigh puro (sem componente de linha de visada)
+      - K > 0 -> Rician com K = P_LOS / P_dispersa
+      - K -> infinito recupera o canal AWGN (h = 1)
+
+    O desvanecimento e por amostra, e nao por simbolo: um vetor latente e um
+    pacote curto, transmitido dentro de um mesmo tempo de coerencia.
+    """
+    scatter_std = (0.5) ** 0.5  # CN(0,1): variancia 1/2 em cada componente
+    shape = (batch_size, 1)
+    scatter = torch.complex(
+        torch.randn(shape, device=device, dtype=dtype) * scatter_std,
+        torch.randn(shape, device=device, dtype=dtype) * scatter_std,
+    )
+    if k_factor is None:
+        return scatter
+    los_gain = (k_factor / (k_factor + 1.0)) ** 0.5
+    scatter_gain = (1.0 / (k_factor + 1.0)) ** 0.5
+    return los_gain + scatter_gain * scatter
+
+
+def fading(
+    z: torch.Tensor,
+    snr_db: Optional[float],
+    k_factor: Optional[float] = None,
+) -> torch.Tensor:
+    """Canal com desvanecimento plano e equalizacao com CSI perfeita.
+
+        y = h * s + n        ->        s_hat = y / h = s + n / h
+
+    Com CSI perfeita no receptor o sinal e recuperado, mas o ruido e amplificado
+    por 1/|h|: em desvanecimentos profundos (|h| pequeno) a SNR instantanea
+    despenca. E dai que vem a diferenca de comportamento em relacao ao AWGN.
+
+    A convencao de SNR e a mesma do canal AWGN: com E[|z_i|^2] = 1 por dimensao
+    real, cada componente do ruido tem desvio sigma = 10^(-SNR_dB/20).
+    """
+    sigma = snr_to_sigma(snr_db)
+    symbols = _to_complex(z)
+    h = _sample_fading(symbols.shape[0], k_factor, z.device, z.dtype)
+
+    if sigma > 0:
+        noise = torch.complex(
+            torch.randn_like(symbols.real) * sigma,
+            torch.randn_like(symbols.imag) * sigma,
+        )
+    else:
+        noise = torch.zeros_like(symbols)
+
+    received = h * symbols + noise
+    equalized = received / h  # CSI perfeita
+    return _to_real(equalized)
+
+
 def apply_channel(
     z: torch.Tensor,
     snr_db: Optional[float],
     channel: str = "awgn",
+    rician_k_db: Optional[float] = None,
 ) -> torch.Tensor:
-    """Aplica o canal ao latente ja normalizado em potencia.
-
-    Fases seguintes do projeto acrescentam desvanecimento (Rayleigh/Rician)
-    aqui, mantendo a mesma interface.
-    """
+    """Aplica o canal ao latente ja normalizado em potencia."""
     if channel == "awgn":
         return awgn(z, snr_db)
+    if channel == "rayleigh":
+        return fading(z, snr_db, k_factor=None)
+    if channel == "rician":
+        if rician_k_db is None:
+            raise ValueError("Canal 'rician' exige --rician-k-db")
+        return fading(z, snr_db, k_factor=10.0 ** (rician_k_db / 10.0))
     raise ValueError(f"Canal nao suportado: {channel}")
 
 
