@@ -74,6 +74,59 @@ def awgn(z: torch.Tensor, snr_db: Optional[float]) -> torch.Tensor:
     return z + torch.randn_like(z) * sigma
 
 
+class _RoundSTE(torch.autograd.Function):
+    """Arredondamento com straight-through estimator.
+
+    O arredondamento tem derivada nula em quase todo ponto, o que bloquearia o
+    gradiente. O STE propaga o gradiente como se a operacao fosse a identidade.
+    """
+
+    @staticmethod
+    def forward(ctx, x):
+        return torch.round(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        return grad_output
+
+
+def quantize_latent(
+    z: torch.Tensor,
+    latent_bits: Optional[int],
+    clip: float = 3.0,
+) -> torch.Tensor:
+    """Quantizacao uniforme do latente em `latent_bits` bits por dimensao.
+
+    Aplicada apos a normalizacao de potencia, de modo que a faixa util e
+    conhecida: com E[|z_i|^2]=1, o recorte em +/-3 cobre ~99,8% da massa se o
+    latente for aproximadamente gaussiano.
+
+    Sobre `clip`: ha um compromisso entre erro de recorte (caudas) e erro de
+    granularidade (passo). Medido em latente gaussiano normalizado, SQNR em dB:
+
+        clip     8 bits   6 bits   4 bits
+         3.0      35.5     30.0     18.7
+         4.0      40.8     28.7     16.2
+
+    Com poucos bits, `clip=3` e melhor (passo menor); com 8 bits ou mais, o
+    recorte passa a dominar. Mantemos 3.0 como padrao porque, mesmo limitado a
+    ~35 dB, o erro de quantizacao fica muito abaixo do ruido de canal na faixa
+    de SNR avaliada (<= 20 dB), nao sendo o fator limitante.
+
+    `None` ou >= 32 mantem precisao total (sem quantizacao).
+    """
+    if latent_bits is None or latent_bits >= 32:
+        return z
+    if latent_bits < 1:
+        raise ValueError("latent_bits deve ser >= 1")
+
+    levels = 2**latent_bits - 1
+    step = (2.0 * clip) / levels
+    z_clipped = z.clamp(-clip, clip)
+    indices = _RoundSTE.apply((z_clipped + clip) / step)
+    return indices * step - clip
+
+
 def apply_channel(
     z: torch.Tensor,
     snr_db: Optional[float],

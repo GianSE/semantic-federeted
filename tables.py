@@ -7,6 +7,7 @@ COLUMNS = [
     "dataset",
     "model",
     "latent_dim",
+    "latent_bits",
     "snr_train_db",
     "snr_test_db",
     "channel",
@@ -15,8 +16,15 @@ COLUMNS = [
     "seed",
     "accuracy_baseline",
     "accuracy_compressed",
+    # As duas contabilidades de comunicacao ficam explicitamente separadas:
+    # payload de inferencia (onde a compressao semantica ganha) e troca de
+    # pesos no FedAvg (onde o modelo semantico custa mais, por ter mais
+    # parametros). Ver comm_cost.py.
+    "inference_bits_per_sample",
     "compression_ratio",
-    "communication_cost_bits",
+    "bandwidth_savings",
+    "model_params",
+    "training_bits_total",
 ]
 
 

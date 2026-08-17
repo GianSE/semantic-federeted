@@ -76,12 +76,22 @@ def plot_comm_cost_vs_latent_dim(df: pd.DataFrame, out_dir: str) -> None:
     if compressed.empty:
         return
     plt.figure()
-    for dataset, group in compressed.groupby("dataset"):
-        # Pegar um valor único por latent_dim
-        unique_bits = group.groupby("latent_dim")["communication_cost_bits"].first().reset_index()
-        plt.semilogy(unique_bits["latent_dim"], unique_bits["communication_cost_bits"], marker="^", label=dataset)
+    for (dataset, latent_bits), group in compressed.groupby(["dataset", "latent_bits"]):
+        unique_bits = (
+            group.groupby("latent_dim")["inference_bits_per_sample"].first().reset_index()
+        )
+        plt.semilogy(
+            unique_bits["latent_dim"], unique_bits["inference_bits_per_sample"],
+            marker="^", label=f"{dataset} ({int(latent_bits)} bits/dim)",
+        )
+    # Referência: custo de transmitir a imagem bruta (uint8).
+    for dataset in compressed["dataset"].unique():
+        raw = compressed[compressed["dataset"] == dataset]["raw_bits_per_sample"].iloc[0]
+        plt.axhline(raw, ls=":", lw=1, color="gray")
+        plt.text(compressed["latent_dim"].max(), raw, f" bruto ({dataset})",
+                 va="bottom", ha="right", fontsize=7, color="gray")
     plt.xlabel(r"Dimensão do Espaço Latente ($L$)")
-    plt.ylabel("Custo de Comunicação (bits)")
+    plt.ylabel("Payload de Inferência (bits/amostra)")
     plt.grid(True, which="both", ls="-", alpha=0.2)
     plt.legend()
     plt.tight_layout()

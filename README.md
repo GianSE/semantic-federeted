@@ -6,6 +6,12 @@ Este repositório contém a implementação completa do testbed experimental des
 
 O projeto demonstra que **autoencoders convolucionais leves**, combinados com **Aprendizado Federado (FedAvg)**, conseguem comprimir a informação semântica de imagens em até **192x** (economia de 99,48% de banda) mantendo acurácia de classificação competitiva — provando que a maioria dos bits em transmissões convencionais é redundância sem valor semântico.
 
+> A razão de compressão compara o payload de inferência contra a imagem bruta em
+> **uint8** (8 bits/pixel, o formato nativo de armazenamento). Os 192x
+> pressupõem latente quantizado em **8 bits/dimensão** com `L=16`
+> (`--latent-dims 16 --latent-bits 8`). Com latente em float32 a razão cai para
+> 48x. Ver `comm_cost.py`.
+
 ---
 
 ## 📂 Estrutura do Projeto
@@ -84,6 +90,24 @@ L = L_CE(Classificador(z̃), y) + α · L_MSE(Decoder(z̃), x)
 ```
 
 Onde `α = 0.5` balanceia classificação e reconstrução.
+
+### Duas contabilidades de comunicação
+
+O sistema tem **dois** custos de comunicação distintos, reportados em colunas
+separadas (`comm_cost.py`) porque respondem a perguntas diferentes:
+
+| | O que mede | Coluna |
+|---|---|---|
+| **Inferência** | payload semântico por amostra transmitida | `inference_bits_per_sample`, `compression_ratio` |
+| **Treinamento** | pesos trocados no FedAvg (uplink + downlink) | `training_bits_total`, `model_params` |
+
+A compressão semântica atua sobre a **primeira**; a segunda depende apenas do
+tamanho do modelo e do número de rodadas/clientes. Somar as duas, ou reportar
+apenas uma como se fosse o custo total, superestima o ganho.
+
+Para CIFAR-10, o modelo semântico também é **menor** que o baseline até `L=64`
+(0,33x em `L=16`; 0,66x em `L=64`), porque o baseline carrega uma camada densa
+`Linear(2048, 256)`. Só em `L=128` ele passa o baseline (1,09x).
 
 ---
 
@@ -266,10 +290,17 @@ python main.py --datasets cifar10 --latent-dims 64 --snr-train-db none
 python -c "import pandas as pd; df = pd.read_csv('results/data/experiment_results.csv'); print(df[['dataset','latent_dim','accuracy_baseline','accuracy_compressed','compression_ratio','communication_cost_bits']].to_string())"
 ```
 
-**Resultado esperado:**
-- Baseline: ~0.677 acurácia, 4.92×10⁹ bits
-- L=64: ~0.649 acurácia, 1.02×10⁸ bits (CR = 48x)
-- L=16: ~0.607 acurácia, 2.56×10⁷ bits (CR = 192x)
+**Payload de inferência por amostra (CIFAR-10, bruto = 24.576 bits em uint8):**
+
+| L   | 32 bits/dim | 8 bits/dim | 4 bits/dim |
+|-----|-------------|------------|------------|
+| 16  | 48x (97,92%) | **192x (99,48%)** | 384x (99,74%) |
+| 32  | 24x (95,83%) | 96x (98,96%) | 192x (99,48%) |
+| 64  | 12x (91,67%) | **48x (97,92%)** | 96x (98,96%) |
+| 128 | 6x (83,33%)  | 24x (95,83%) | 48x (97,92%) |
+
+Os dois números do artigo (97,9% para `L=64` e 99,48% para `L=16`) são exatamente
+recuperados com quantização de 8 bits por dimensão.
 
 ### Hipótese 2: Ruído Gaussiano como Regularizador
 

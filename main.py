@@ -43,6 +43,13 @@ def build_arg_parser():
         "(varios valores geram a matriz de mismatch treino x teste).",
     )
     parser.add_argument("--channel", type=str, default="awgn", choices=["awgn"])
+    parser.add_argument(
+        "--latent-bits",
+        type=int,
+        nargs="+",
+        default=[32],
+        help="Bits por dimensao latente (32 = sem quantizacao).",
+    )
     parser.add_argument("--dropout-p", type=float, default=0.0)
     parser.add_argument("--num-clients", type=int, default=5)
     parser.add_argument("--rounds", type=int, default=3)
@@ -84,20 +91,22 @@ def build_grid(args) -> List[Dict]:
             base = _shared(args, dataset, seed)
             configs.append({**base, "model": "baseline"})
             for latent_dim in args.latent_dims:
-                for snr_train in args.snr_train_db:
-                    for snr_test in args.snr_test_db:
-                        configs.append(
-                            {
-                                **base,
-                                "model": "compressed",
-                                "latent_dim": latent_dim,
-                                "snr_train_db": snr_train,
-                                "snr_test_db": resolve_test_snr(snr_test, snr_train),
-                                "channel": args.channel,
-                                "dropout_p": args.dropout_p,
-                                "alpha": args.alpha,
-                            }
-                        )
+                for latent_bits in args.latent_bits:
+                    for snr_train in args.snr_train_db:
+                        for snr_test in args.snr_test_db:
+                            configs.append(
+                                {
+                                    **base,
+                                    "model": "compressed",
+                                    "latent_dim": latent_dim,
+                                    "latent_bits": latent_bits,
+                                    "snr_train_db": snr_train,
+                                    "snr_test_db": resolve_test_snr(snr_test, snr_train),
+                                    "channel": args.channel,
+                                    "dropout_p": args.dropout_p,
+                                    "alpha": args.alpha,
+                                }
+                            )
     # A sentinela 'match' pode gerar duplicatas quando combinada com valores
     # explicitos (ex.: --snr-test-db match 10 com --snr-train-db 10).
     seen, unique = set(), []

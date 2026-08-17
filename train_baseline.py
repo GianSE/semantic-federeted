@@ -4,7 +4,7 @@ from typing import Dict
 import torch
 from torch import nn
 
-from comm_cost import total_raw_bits
+from comm_cost import comm_summary
 from data import get_federated_dataloaders
 from device import get_device, loader_kwargs
 from federated import federated_train, set_seed
@@ -85,9 +85,15 @@ def run_baseline(config: Dict) -> Dict:
         "accuracy_compressed": None,
         "classification_loss": final_eval["eval_loss"],
         "reconstruction_loss": None,
-        "compression_ratio": 1.0,
-        "communication_cost_bits": total_raw_bits(config["dataset"], total_samples),
         "total_samples": total_samples,
+        **comm_summary(
+            dataset_name=config["dataset"],
+            num_samples=total_samples,
+            model=model,
+            num_clients=config["num_clients"],
+            rounds=config["rounds"],
+            latent_dim=None,  # baseline transmite a imagem bruta
+        ),
     }
     return {"metrics": metrics, "history": history, "device": str(device)}
 

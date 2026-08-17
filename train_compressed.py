@@ -1,10 +1,10 @@
 import argparse
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 from torch import nn
 
-from comm_cost import compression_ratio, total_latent_bits, total_raw_bits
+from comm_cost import comm_summary
 from data import get_federated_dataloaders
 from device import get_device, loader_kwargs
 from federated import federated_train, set_seed
@@ -16,6 +16,7 @@ from channel import (
     apply_dropout_noise,
     normalize_power,
     parse_snr,
+    quantize_latent,
     resolve_test_snr,
 )
 from save_results import save_run
@@ -34,8 +35,19 @@ class CompressedModel(nn.Module):
         self.autoencoder = autoencoder
         self.classifier = classifier
 
-    def forward(self, x, snr_db, dropout_p: float, training: bool, channel: str = "awgn"):
+    def forward(
+        self,
+        x,
+        snr_db,
+        dropout_p: float,
+        training: bool,
+        channel: str = "awgn",
+        latent_bits: Optional[int] = None,
+    ):
+        # Transmissor: codifica, normaliza a potencia e quantiza para o formato
+        # efetivamente transmitido (e contabilizado em bits).
         z = normalize_power(self.autoencoder.encode(x))
+        z = quantize_latent(z, latent_bits)
         z_hat = apply_channel(z, snr_db, channel=channel)
         z_hat = apply_dropout_noise(z_hat, dropout_p, training=training)
         # Classificador e decoder estao no receptor: ambos operam sobre o
@@ -52,6 +64,7 @@ def _step_fn(
     snr_db,
     dropout_p: float,
     channel: str,
+    latent_bits: Optional[int],
     training: bool,
 ):
     def step(model, batch, device):
@@ -59,7 +72,8 @@ def _step_fn(
         inputs = inputs.to(device)
         targets = targets.to(device)
         _, _, logits, recon = model(
-            inputs, snr_db, dropout_p, training=training, channel=channel
+            inputs, snr_db, dropout_p, training=training,
+            channel=channel, latent_bits=latent_bits,
         )
         classification_loss = loss_fn(logits, targets)
         reconstruction_loss = recon_loss_fn(recon, inputs)
@@ -99,9 +113,10 @@ def run_compressed(config: Dict) -> Dict:
     optimizer_fn = lambda params: torch.optim.Adam(params, lr=config["lr"])
 
     channel = config.get("channel", "awgn")
-    common = (loss_fn, recon_loss_fn, config["alpha"], )
-    train_args = (*common, config["snr_train_db"], config["dropout_p"], channel)
-    eval_args = (*common, config["snr_test_db"], config["dropout_p"], channel)
+    latent_bits = config.get("latent_bits")
+    common = (loss_fn, recon_loss_fn, config["alpha"])
+    train_args = (*common, config["snr_train_db"], config["dropout_p"], channel, latent_bits)
+    eval_args = (*common, config["snr_test_db"], config["dropout_p"], channel, latent_bits)
 
     _, history = federated_train(
         global_model=model,
@@ -118,16 +133,21 @@ def run_compressed(config: Dict) -> Dict:
 
     final_eval = history[-1]
     total_samples = sum(len(loader.dataset) for loader in client_loaders)
-    raw_bits = total_raw_bits(config["dataset"], total_samples)
-    compressed_bits = total_latent_bits(config["latent_dim"], total_samples)
     metrics = {
         "accuracy_baseline": None,
         "accuracy_compressed": final_eval["eval_accuracy"],
         "classification_loss": final_eval["eval_classification_loss"],
         "reconstruction_loss": final_eval["eval_reconstruction_loss"],
-        "compression_ratio": compression_ratio(raw_bits, compressed_bits),
-        "communication_cost_bits": compressed_bits,
         "total_samples": total_samples,
+        **comm_summary(
+            dataset_name=config["dataset"],
+            num_samples=total_samples,
+            model=model,
+            num_clients=config["num_clients"],
+            rounds=config["rounds"],
+            latent_dim=config["latent_dim"],
+            latent_bits=latent_bits if latent_bits is not None else 32,
+        ),
     }
     return {"metrics": metrics, "history": history, "device": str(device)}
 
@@ -149,6 +169,12 @@ def build_arg_parser():
         help="SNR na avaliacao. 'match' usa a mesma do treino.",
     )
     parser.add_argument("--channel", type=str, default="awgn", choices=["awgn"])
+    parser.add_argument(
+        "--latent-bits",
+        type=int,
+        default=32,
+        help="Bits por dimensao latente transmitida (32 = sem quantizacao).",
+    )
     parser.add_argument("--dropout-p", type=float, default=0.0)
     parser.add_argument("--num-clients", type=int, default=5)
     parser.add_argument("--rounds", type=int, default=3)
