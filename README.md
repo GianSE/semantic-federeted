@@ -20,17 +20,19 @@ semantic-federeted/
 ├── train_baseline.py        # 📊 Treinamento federado do baseline (sem compressão)
 ├── train_compressed.py      # 🔬 Treinamento federado com compressão semântica
 ├── federated.py             # 🔄 Motor de Aprendizado Federado (FedAvg)
-├── compression.py           # 📐 Cálculos de taxa de compressão e custo de comunicação
-├── noise.py                 # 📶 Injeção de ruído gaussiano (AWGN) e dropout
+├── comm_cost.py             # 📐 Cálculos de taxa de compressão e custo de comunicação
+├── channel.py               # 📶 Modelo de canal: normalização de potência + AWGN (SNR em dB)
+├── device.py                # 💻 Seleção de dispositivo (CPU/CUDA)
 ├── metrics.py               # 📈 Métricas de avaliação (acurácia, médias)
-├── save_results.py          # 💾 Persistência de resultados (CSV + JSON, acumulativo)
+├── save_results.py          # 💾 Persistência por run (JSON) + exportação de CSVs
 ├── plot_results.py          # 📊 Geração de gráficos acadêmicos (estilo IEEE)
 ├── tables.py                # 📋 Geração de tabelas LaTeX para o artigo
 ├── gera_exemplo_real.py     # 🖼️ Gera mosaico visual (Original → Embedding → Reconstrução)
 ├── requirements.txt         # 📦 Dependências Python
 │
 ├── results/                 # Resultados gerados pelos experimentos
-│   ├── data/                #   ├── experiment_results.csv / .json
+│   ├── runs/                #   ├── Um JSON por configuração (execuções retomáveis)
+│   ├── data/                #   ├── experiment_results.csv / history.csv
 │   ├── plots/               #   ├── Gráficos PNG (accuracy, noise, compression)
 │   └── tables/              #   └── Tabelas CSV e LaTeX
 │
@@ -57,7 +59,7 @@ O pipeline de comunicação semântica federada funciona em 3 fases:
 │   Imagem ──► Encoder (CNN) ──► Espaço Latente z ──┬──► Classificador ──► Decisão
 │              (3 blocos conv)     (L dimensões)    │   (Task-Oriented)
 │                                      │            │
-│                                  [+ Ruído σ]      └──► Decoder ──► Reconstrução
+│                            [normaliza + canal AWGN]  └──► Decoder ──► Reconstrução
 │                                      │
 │                                      ▼
 │                              Vetor Latente z̃
@@ -141,8 +143,8 @@ Com GPU, `--num-workers 4` costuma ser o ganho maior (o padrão `0` é gargalo).
 
 | Perfil | Comando | Custo aprox. (CPU) | Uso |
 |--------|---------|--------------------|-----|
-| `smoke` | `python main.py --datasets mnist --latent-dims 16 --noise-levels 0.0 --num-clients 2 --rounds 2 --train-fraction 0.02` | ~15 s | validar o pipeline |
-| `dev` | `python main.py --datasets cifar10 --latent-dims 16 64 --noise-levels 0.0 0.05 --num-clients 5 --rounds 5` | ~1–2 h | verificar tendências |
+| `smoke` | `python main.py --datasets mnist --latent-dims 16 --snr-train-db none --num-clients 2 --rounds 2 --train-fraction 0.02` | ~15 s | validar o pipeline |
+| `dev` | `python main.py --datasets cifar10 --latent-dims 16 64 --snr-train-db none 10 --num-clients 5 --rounds 5` | ~1–2 h | verificar tendências |
 | `paper` | grade completa (ver seção de reprodução) | GPU recomendada | números finais |
 
 `--train-fraction` subamostra o conjunto de treino, permitindo rodadas rápidas
@@ -173,7 +175,7 @@ Este comando executa **todos** os experimentos com os hiperparâmetros padrão d
 |-----------------------|---------------------------|
 | Datasets              | `mnist`, `cifar10`        |
 | Dimensões Latentes    | `16, 32, 64, 128`        |
-| Níveis de Ruído (σ)   | `0.0, 0.01, 0.05, 0.1`   |
+| SNR de Treino (dB)    | `none, 20, 10, 5, 0, -5, -10` |
 | Clientes Federados    | `5`                       |
 | Rodadas Federadas     | `3`                       |
 | Épocas Locais         | `1`                       |
@@ -194,7 +196,7 @@ python main.py --datasets cifar10 --latent-dims 16 32 64
 python main.py --datasets cifar10 --rounds 5 --num-clients 10
 
 # Variar apenas o ruído para L=64
-python main.py --datasets cifar10 --latent-dims 64 --noise-levels 0.0 0.01 0.05 0.1 0.2
+python main.py --datasets cifar10 --latent-dims 64 --snr-train-db 20 10 5 0 -5 -10
 
 # Múltiplas seeds (para média e desvio-padrão nas figuras)
 python main.py --datasets cifar10 --seeds 42 43 44
@@ -209,7 +211,7 @@ Cada componente pode ser executado separadamente:
 python train_baseline.py --dataset cifar10 --rounds 3
 
 # Apenas o modelo comprimido (autoencoder + classificador latente)
-python train_compressed.py --dataset cifar10 --latent-dim 64 --noise-level 0.05
+python train_compressed.py --dataset cifar10 --latent-dim 64 --snr-train-db 10
 
 # Regenerar gráficos a partir dos resultados existentes
 python plot_results.py
@@ -236,7 +238,9 @@ Após a execução, o diretório `results/` conterá:
 |--------------------------------------|-----------------------------------------------------|
 | `accuracy_vs_compression_ratio.png`  | Trade-off entre compressão e acurácia               |
 | `accuracy_vs_latent_dim.png`         | Acurácia em função da dimensão latente              |
-| `accuracy_vs_noise_level.png`        | Impacto do ruído na acurácia (por L)                |
+| `accuracy_vs_snr.png`                | Acurácia vs. SNR do canal (por L)                   |
+| `snr_mismatch_<ds>_L<n>.png`         | Matriz SNR de treino × SNR de teste                 |
+| `accuracy_vs_round_<ds>.png`         | Convergência federada (acurácia por rodada)         |
 | `communication_cost_vs_latent_dim.png` | Custo de comunicação vs dimensão latente          |
 
 ### `results/tables/`
@@ -256,7 +260,7 @@ Após a execução, o diretório `results/` conterá:
 **Como verificar:**
 ```bash
 # Executar o baseline e a compressão com L=64
-python main.py --datasets cifar10 --latent-dims 64 --noise-levels 0.0
+python main.py --datasets cifar10 --latent-dims 64 --snr-train-db none
 
 # Verificar os resultados
 python -c "import pandas as pd; df = pd.read_csv('results/data/experiment_results.csv'); print(df[['dataset','latent_dim','accuracy_baseline','accuracy_compressed','compression_ratio','communication_cost_bits']].to_string())"
@@ -271,28 +275,36 @@ python -c "import pandas as pd; df = pd.read_csv('results/data/experiment_result
 
 **Afirmação do artigo:** Ruído moderado (σ=0.05) **melhora** a acurácia em relação ao cenário sem ruído.
 
+> ⚠️ **Em reverificação.** Esta afirmação foi obtida com a parametrização
+> anterior, na qual σ era uma amplitude absoluta aplicada a um latente de escala
+> livre — condição em que σ não define uma condição de canal. Medindo a potência
+> do latente após o treino naquela formulação (E[|z_i|²] ≈ 3,96 para L=64),
+> σ=0,05 correspondia a uma SNR efetiva de **≈ 32 dB**, isto é, um canal muito
+> favorável. Além disso, a diferença reportada (0,6509 vs. 0,6488) é de 2
+> milésimos, medida com uma única seed. A reverificação exige múltiplas seeds e
+> a nova parametrização por SNR.
+
 **Como verificar:**
 ```bash
 # Executar com diferentes níveis de ruído
-python main.py --datasets cifar10 --latent-dims 64 --noise-levels 0.0 0.05 0.1
+python main.py --datasets cifar10 --latent-dims 64 --snr-train-db none 26 20
 
 # Comparar os resultados
 python -c "
 import pandas as pd
 df = pd.read_csv('results/data/experiment_results.csv')
 df = df[(df['dataset']=='cifar10') & (df['latent_dim']==64)]
-print(df[['noise_level','accuracy_compressed']].to_string())
+print(df[['snr_train_db','accuracy_compressed']].to_string())
 "
 ```
 
-**Resultado esperado:**
-| Ruído (σ) | Acurácia   |
-|-----------|------------|
-| 0.00      | ~0.6488    |
-| 0.05      | **~0.6509** ← maior que sem ruído! |
-| 0.10      | ~0.6492    |
+**O que verificar:** se a acurácia em SNR alta (canal levemente ruidoso) supera a
+do canal ideal, com a diferença maior que o desvio-padrão entre seeds. Use
+`--seeds 42 43 44` — as figuras já desenham a faixa de ±1 desvio-padrão.
 
-Isto comprova a teoria do **Information Bottleneck**: o ruído impede overfitting e força o encoder a aprender representações semânticas mais robustas.
+A hipótese subjacente é a do **Information Bottleneck**: o ruído impediria o
+overfitting, forçando o encoder a representações semânticas mais robustas. O
+efeito só pode ser afirmado se sobreviver à variabilidade entre seeds.
 
 ### Hipótese 3: Queda Logarítmica de Acurácia com a Compressão
 
@@ -300,7 +312,7 @@ Isto comprova a teoria do **Information Bottleneck**: o ruído impede overfittin
 
 **Como verificar:**
 ```bash
-python main.py --datasets cifar10 --latent-dims 16 32 64 128 256 --noise-levels 0.0
+python main.py --datasets cifar10 --latent-dims 16 32 64 128 256 --snr-train-db none
 python plot_results.py
 # Abrir results/plots/accuracy_vs_latent_dim.png
 ```
@@ -314,7 +326,7 @@ del results\data\experiment_results.csv
 del results\data\experiment_results.json
 
 # Execução completa
-python main.py --datasets cifar10 --latent-dims 16 32 64 128 --noise-levels 0.0 0.01 0.05 0.1 --rounds 3 --seed 42
+python main.py --datasets cifar10 --latent-dims 16 32 64 128 --snr-train-db none 20 10 0 --rounds 3 --seeds 42
 ```
 
 ---
@@ -342,7 +354,7 @@ Três variantes:
 ### `train_compressed.py` — Pipeline Comprimido
 Combina Autoencoder + LatentClassifier em um `CompressedModel` que:
 1. Codifica a imagem → vetor latente `z`
-2. Injeta ruído AWGN → `z̃ = z + N(0, σ²)`
+2. Normaliza a potência (E[|z_i|²]=1) e injeta AWGN → `z̃ = z + N(0, σ²)`, com `σ = 10^(-SNR_dB/20)`
 3. Classifica a partir de `z̃`
 4. Reconstrói a imagem a partir de `z`
 5. Otimiza com perda multitarefa: `L = L_CE + α·L_MSE`
@@ -365,7 +377,7 @@ Calcula o custo em bits para cada cenário:
 
 ### `noise.py` — Simulação de Canal
 Simula imperfeições do canal sem fio:
-- **Ruído Gaussiano (AWGN)**: `z̃ = z + N(0, σ²)` — modela interferência de canal
+- **Canal AWGN**: `z̃ = z + N(0, σ²)` sobre latente de potência unitária, com `σ = 10^(-SNR_dB/20)` — a condição de canal é definida pela SNR em dB, não por uma amplitude absoluta
 - **Dropout**: Zera aleatoriamente dimensões do vetor latente
 
 ### `plot_results.py` — Visualização Acadêmica
@@ -396,7 +408,7 @@ pdflatex main.tex
 
 Para enviar ao Overleaf, faça upload dos seguintes arquivos:
 - `main.tex`, `acronym.tex`, `ref.bib`
-- Pasta `figures/` com: `mosaico_real.png`, `accuracy_vs_noise_level.png`, `accuracy_vs_latent_dim.png`, `results_table.tex`
+- Pasta `figures/` com: `mosaico_real.png`, `accuracy_vs_snr.png`, `accuracy_vs_latent_dim.png`, `results_table.tex`
 
 ---
 

@@ -11,38 +11,56 @@ from federated import federated_train, set_seed
 from metrics import accuracy_from_logits
 from model_autoencoder import build_autoencoder
 from model_classifier import LatentClassifier
-from noise import add_gaussian_noise, apply_dropout_noise
+from channel import (
+    apply_channel,
+    apply_dropout_noise,
+    normalize_power,
+    parse_snr,
+    resolve_test_snr,
+)
 from save_results import save_run
 
 
 class CompressedModel(nn.Module):
+    """Transmissor (encoder) -> canal -> receptor (classificador + decoder).
+
+    O latente e normalizado em potencia antes do canal, de modo que a condicao
+    de canal seja definida por uma SNR em dB e nao por uma amplitude absoluta
+    que o proprio treinamento poderia anular aumentando ||z||.
+    """
+
     def __init__(self, autoencoder: nn.Module, classifier: nn.Module):
         super().__init__()
         self.autoencoder = autoencoder
         self.classifier = classifier
 
-    def forward(self, x, noise_sigma: float, dropout_p: float, training: bool):
-        z = self.autoencoder.encode(x)
-        z_noisy = add_gaussian_noise(z, noise_sigma)
-        z_noisy = apply_dropout_noise(z_noisy, dropout_p, training=training)
-        logits = self.classifier(z_noisy)
-        recon = self.autoencoder.decode(z)
-        return z, z_noisy, logits, recon
+    def forward(self, x, snr_db, dropout_p: float, training: bool, channel: str = "awgn"):
+        z = normalize_power(self.autoencoder.encode(x))
+        z_hat = apply_channel(z, snr_db, channel=channel)
+        z_hat = apply_dropout_noise(z_hat, dropout_p, training=training)
+        # Classificador e decoder estao no receptor: ambos operam sobre o
+        # latente efetivamente recebido (z_hat), conforme a Eq. (2) do artigo.
+        logits = self.classifier(z_hat)
+        recon = self.autoencoder.decode(z_hat)
+        return z, z_hat, logits, recon
 
 
 def _step_fn(
     loss_fn: nn.Module,
     recon_loss_fn: nn.Module,
     alpha: float,
-    noise_sigma: float,
+    snr_db,
     dropout_p: float,
+    channel: str,
     training: bool,
 ):
     def step(model, batch, device):
         inputs, targets = batch
         inputs = inputs.to(device)
         targets = targets.to(device)
-        _, _, logits, recon = model(inputs, noise_sigma, dropout_p, training=training)
+        _, _, logits, recon = model(
+            inputs, snr_db, dropout_p, training=training, channel=channel
+        )
         classification_loss = loss_fn(logits, targets)
         reconstruction_loss = recon_loss_fn(recon, inputs)
         loss = classification_loss + alpha * reconstruction_loss
@@ -80,7 +98,10 @@ def run_compressed(config: Dict) -> Dict:
     recon_loss_fn = nn.MSELoss()
     optimizer_fn = lambda params: torch.optim.Adam(params, lr=config["lr"])
 
-    step_args = (loss_fn, recon_loss_fn, config["alpha"], config["noise_level"], config["dropout_p"])
+    channel = config.get("channel", "awgn")
+    common = (loss_fn, recon_loss_fn, config["alpha"], )
+    train_args = (*common, config["snr_train_db"], config["dropout_p"], channel)
+    eval_args = (*common, config["snr_test_db"], config["dropout_p"], channel)
 
     _, history = federated_train(
         global_model=model,
@@ -89,8 +110,8 @@ def run_compressed(config: Dict) -> Dict:
         rounds=config["rounds"],
         local_epochs=config["local_epochs"],
         optimizer_fn=optimizer_fn,
-        train_step_fn=_step_fn(*step_args, training=True),
-        eval_step_fn=_step_fn(*step_args, training=False),
+        train_step_fn=_step_fn(*train_args, training=True),
+        eval_step_fn=_step_fn(*eval_args, training=False),
         device=device,
         show_progress=config.get("show_progress", True),
     )
@@ -115,7 +136,19 @@ def build_arg_parser():
     parser = argparse.ArgumentParser(description="Federated compressed training")
     parser.add_argument("--dataset", type=str, default="mnist")
     parser.add_argument("--latent-dim", type=int, default=32)
-    parser.add_argument("--noise-level", type=float, default=0.0)
+    parser.add_argument(
+        "--snr-train-db",
+        type=parse_snr,
+        default=None,
+        help="SNR do canal no treino, em dB. Use 'none' para canal ideal.",
+    )
+    parser.add_argument(
+        "--snr-test-db",
+        type=parse_snr,
+        default="match",
+        help="SNR na avaliacao. 'match' usa a mesma do treino.",
+    )
+    parser.add_argument("--channel", type=str, default="awgn", choices=["awgn"])
     parser.add_argument("--dropout-p", type=float, default=0.0)
     parser.add_argument("--num-clients", type=int, default=5)
     parser.add_argument("--rounds", type=int, default=3)
@@ -137,6 +170,7 @@ def main():
     config = vars(args)
     runs_dir = config.pop("runs_dir")
     config["model"] = "compressed"
+    config["snr_test_db"] = resolve_test_snr(config["snr_test_db"], config["snr_train_db"])
 
     result = run_compressed(config)
     save_run(runs_dir, config, result["metrics"], result["history"], result["device"])

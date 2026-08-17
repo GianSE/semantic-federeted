@@ -39,6 +39,7 @@ def train_local(
 ) -> Dict[str, float]:
     model.train()
     batch_metrics = []
+    batch_sizes = []
     batch_iter = loader
     if show_progress:
         batch_iter = tqdm(loader, desc="Batches", leave=False)
@@ -48,7 +49,8 @@ def train_local(
         loss.backward()
         optimizer.step()
         batch_metrics.append(metrics)
-    return average_metrics(batch_metrics)
+        batch_sizes.append(batch[1].size(0))
+    return average_metrics(batch_metrics, batch_sizes)
 
 
 def evaluate_model(
@@ -59,11 +61,13 @@ def evaluate_model(
 ) -> Dict[str, float]:
     model.eval()
     batch_metrics = []
+    batch_sizes = []
     with torch.no_grad():
         for batch in loader:
             _, metrics = eval_step_fn(model, batch, device)
             batch_metrics.append(metrics)
-    return average_metrics(batch_metrics)
+            batch_sizes.append(batch[1].size(0))
+    return average_metrics(batch_metrics, batch_sizes)
 
 
 def federated_train(
