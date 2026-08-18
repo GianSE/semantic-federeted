@@ -30,21 +30,33 @@ Ambos os PDFs são obrigatórios na submissão.
 | `preenchimento/referencias-*.bib` | Referências (mesmas chaves nos dois arquivos) |
 | `configuracoes/`, `sicite.sty` | Template oficial — não editar |
 
+## Compilar localmente
+
+```bash
+python build.py          # as duas versões
+python build.py --com    # só a versão com identificação
+python build.py --sem    # só a versão cega
+```
+
+O script roda `pdflatex → bibtex → pdflatex → pdflatex`, grava os PDFs em
+`build/` e verifica automaticamente as duas regras eliminatórias do evento
+(limite de 2 páginas e ausência de vazamento de autoria na versão cega), além
+de citações e referências pendentes. Requer `pdflatex` e `bibtex` no PATH.
+
 ## Estado da verificação
 
-Compilado localmente com Tectonic (XeTeX), substituindo *TeX Gyre Termes* por
-*Times New Roman* apenas na cópia de teste, por indisponibilidade da primeira
-neste ambiente. As duas fontes são metricamente compatíveis, então a paginação
-deve se manter; ainda assim, **reconfira ao compilar no Overleaf**.
+Compilado com pdfLaTeX (TeX Live 2025) — o mesmo motor indicado pelo template e
+usado no Overleaf.
 
 - Versão com identificação: **2 páginas** ✅
 - Versão sem identificação: **2 páginas** ✅
 - Citações indefinidas: nenhuma, nas duas versões
-- Versão cega: sem vazamento de autoria no log
+- Versão cega: nenhum termo de autoria encontrado ✅
 
-O limite de 2 páginas é eliminatório e a margem é pequena. Se estourar ao
-compilar, os pontos naturais para cortar são o *Contexto* e a lista de trabalhos
-futuros na *Conclusão*.
+Sobra cerca de um quarto da segunda página. Se precisar cortar depois de
+preencher título e área, os pontos naturais são o *Contexto* e a lista de
+trabalhos futuros na *Conclusão*; se sobrar espaço, são os mesmos pontos para
+reexpandir.
 
 ## Pendências antes de submeter
 
