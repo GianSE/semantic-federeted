@@ -64,9 +64,11 @@ reexpandir.
       exata com o plano de trabalho cadastrado pelo orientador. O título atual
       foi adaptado do artigo do SBrT e precisa ser conferido — divergência
       obriga reenvio.
-- [ ] **Área temática.** O evento tem 19; preencher o número e o nome em
-      `dados-com-identificacao.tex` e `dados-sem-identificacao.tex`
-      (os dois devem coincidir com a área escolhida na submissão).
+- [x] **Área temática:** `09 -- Engenharia Elétrica`, preenchida nas duas
+      versões. Escolhida por ser a específica de telecomunicações e
+      corresponder ao departamento; `14 -- Engenharias` é a categoria genérica
+      e `05 -- Ciência/Engenharia da Computação/Software` deslocaria o enfoque
+      para aprendizado de máquina. Selecione a mesma no Even3.
 - [ ] **E-mail.** Deve ser o mesmo cadastrado no SISPEQ.
 - [ ] **Agradecimentos.** Incluir a agência de fomento correta se houver bolsa
       (CNPq, Fundação Araucária, PIBIC/PIBITI); caso contrário, manter apenas
