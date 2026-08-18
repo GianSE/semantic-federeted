@@ -62,6 +62,10 @@ def build_arg_parser():
         "--weight-snr-db", type=parse_snr, nargs="+", default=[None],
         help="SNRs do uplink de pesos do FedAvg, em dB. 'none' = enlace ideal.",
     )
+    parser.add_argument(
+        "--betas", type=float, nargs="+", default=[None],
+        help="Concentracoes de Dirichlet para particao non-IID. Omitir = IID.",
+    )
     parser.add_argument("--dropout-p", type=float, default=0.0)
     parser.add_argument("--num-clients", type=int, default=5)
     parser.add_argument("--rounds", type=int, default=3)
@@ -99,8 +103,9 @@ def build_grid(args) -> List[Dict]:
     """Enumera as configuracoes da grade, sem executar nada."""
     configs = []
 
-    for dataset, seed, weight_snr in product(args.datasets, args.seeds, args.weight_snr_db):
-        base = {**_shared(args, dataset, seed), "weight_snr_db": weight_snr}
+    outer = product(args.datasets, args.seeds, args.weight_snr_db, args.betas)
+    for dataset, seed, weight_snr, beta in outer:
+        base = {**_shared(args, dataset, seed), "weight_snr_db": weight_snr, "beta": beta}
         configs.append({**base, "model": "baseline"})
 
         compressed_axes = product(
@@ -158,7 +163,10 @@ def main():
 
             runner = run_baseline if config["model"] == "baseline" else run_compressed
             result = runner({**config, "device": args.device, "num_workers": args.num_workers})
-            save_run(args.runs_dir, config, result["metrics"], result["history"], result["device"])
+            save_run(
+                args.runs_dir, config, result["metrics"], result["history"], result["device"],
+                extra={"client_distribution": result["client_distribution"]},
+            )
 
     data_dir = f"{args.out_dir}/data"
     if export_results(args.runs_dir, data_dir) is not None:

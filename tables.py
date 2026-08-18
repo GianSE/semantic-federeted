@@ -13,6 +13,7 @@ COLUMNS = [
     "channel",
     "weight_snr_db",
     "rician_k_db",
+    "beta",
     "num_clients",
     "rounds",
     "seed",

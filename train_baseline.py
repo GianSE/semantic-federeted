@@ -6,7 +6,7 @@ from torch import nn
 
 from channel import parse_snr
 from comm_cost import comm_summary
-from data import get_federated_dataloaders
+from data import client_label_counts, get_federated_dataloaders
 from device import get_device, loader_kwargs
 from federated import federated_train, set_seed
 from metrics import accuracy_from_logits
@@ -57,6 +57,7 @@ def run_baseline(config: Dict) -> Dict:
         test_batch_size=config["test_batch_size"],
         seed=config["seed"],
         train_fraction=config.get("train_fraction", 1.0),
+        beta=config.get("beta"),
         **loader_kwargs(device, config.get("num_workers", 0)),
     )
 
@@ -97,7 +98,14 @@ def run_baseline(config: Dict) -> Dict:
             latent_dim=None,  # baseline transmite a imagem bruta
         ),
     }
-    return {"metrics": metrics, "history": history, "device": str(device)}
+    return {
+        "metrics": metrics,
+        "history": history,
+        "device": str(device),
+        "client_distribution": client_label_counts(
+            [loader.dataset for loader in client_loaders]
+        ),
+    }
 
 
 def build_arg_parser():
@@ -114,6 +122,10 @@ def build_arg_parser():
         "--weight-snr-db", type=parse_snr, default=None,
         help="SNR do uplink de pesos do FedAvg, em dB. 'none' = enlace ideal.",
     )
+    parser.add_argument(
+        "--beta", type=float, default=None,
+        help="Concentracao de Dirichlet para particao non-IID. Omitir = IID.",
+    )
     parser.add_argument("--train-fraction", type=float, default=1.0)
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument("--num-workers", type=int, default=0)
@@ -128,7 +140,10 @@ def main():
     config["model"] = "baseline"
 
     result = run_baseline(config)
-    save_run(runs_dir, config, result["metrics"], result["history"], result["device"])
+    save_run(
+        runs_dir, config, result["metrics"], result["history"], result["device"],
+        extra={"client_distribution": result["client_distribution"]},
+    )
     print(result["metrics"])
 
 

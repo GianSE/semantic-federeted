@@ -1,3 +1,4 @@
+import json
 import os
 from typing import Optional
 
@@ -206,6 +207,43 @@ def plot_accuracy_vs_round(history_csv: str, out_dir: str) -> None:
         plt.close()
 
 
+def plot_client_distribution(records_json: str, out_dir: str) -> None:
+    """Heatmap cliente x classe, documentando a heterogeneidade da partição."""
+    if not os.path.isfile(records_json):
+        return
+    with open(records_json, "r", encoding="utf-8") as f:
+        records = json.load(f)
+
+    # Uma figura por (dataset, beta): a partição não depende do resto da config.
+    seen = set()
+    for record in records:
+        config = record.get("config", {})
+        counts = record.get("client_distribution")
+        if not counts:
+            continue
+        key = (config.get("dataset"), config.get("beta"), config.get("seed"))
+        if key in seen:
+            continue
+        seen.add(key)
+
+        dataset, beta, seed = key
+        matrix = pd.DataFrame(counts)
+        _ensure_dir(out_dir)
+        plt.figure(figsize=(5, 3.2))
+        im = plt.imshow(matrix.values, cmap="viridis", aspect="auto")
+        plt.colorbar(im, label="Amostras")
+        plt.xlabel("Classe")
+        plt.ylabel("Cliente")
+        beta_txt = "IID" if beta is None else fr"Dirichlet $\beta={beta:g}$"
+        plt.title(f"{dataset} — {beta_txt}")
+        plt.xticks(range(matrix.shape[1]))
+        plt.yticks(range(matrix.shape[0]))
+        plt.tight_layout()
+        suffix = "iid" if beta is None else f"beta{beta:g}"
+        plt.savefig(os.path.join(out_dir, f"client_distribution_{dataset}_{suffix}_seed{seed}.png"))
+        plt.close()
+
+
 def generate_plots(data_dir: str, out_dir: str) -> None:
     df = pd.read_csv(os.path.join(data_dir, "experiment_results.csv"))
     # Ordenar por valores para o plot não ficar "vai e volta"
@@ -217,6 +255,7 @@ def generate_plots(data_dir: str, out_dir: str) -> None:
     plot_accuracy_vs_snr(df, out_dir)
     plot_snr_mismatch(df, out_dir)
     plot_accuracy_vs_round(os.path.join(data_dir, "history.csv"), out_dir)
+    plot_client_distribution(os.path.join(data_dir, "experiment_results.json"), out_dir)
 
 
 if __name__ == "__main__":

@@ -69,6 +69,7 @@ def save_run(
     metrics: Dict,
     history: List[Dict],
     device: str = "unknown",
+    extra: Optional[Dict] = None,
 ) -> str:
     os.makedirs(runs_dir, exist_ok=True)
     record = {
@@ -79,6 +80,7 @@ def save_run(
         "device": device,
         "git_commit": _git_commit(),
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        **(extra or {}),
     }
     path = run_path(runs_dir, config)
     with open(path, "w", encoding="utf-8") as f:

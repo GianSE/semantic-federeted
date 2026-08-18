@@ -224,6 +224,18 @@ python main.py --datasets cifar10 --latent-dims 64 --snr-train-db 20 10 5 0 -5 -
 
 # Múltiplas seeds (para média e desvio-padrão nas figuras)
 python main.py --datasets cifar10 --seeds 42 43 44
+
+# Cenário non-IID (particionamento por Dirichlet; beta menor = mais heterogêneo)
+python main.py --datasets cifar10 --betas 0.1 0.5
+
+# Canais com desvanecimento
+python main.py --datasets cifar10 --channels awgn rayleigh rician --rician-k-db 10
+
+# Canal imperfeito também no uplink de pesos do FedAvg
+python main.py --datasets cifar10 --weight-snr-db none 20 10 0
+
+# Matriz de descasamento SNR de treino x SNR de teste
+python main.py --datasets cifar10 --latent-dims 64 --snr-train-db 0 10 --snr-test-db -10 0 10 20
 ```
 
 ### 5. Scripts individuais
