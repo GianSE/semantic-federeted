@@ -96,3 +96,13 @@ docs/paper/mosaico_reconstrucao.png
 # Prompt / scratch files
 # =========================
 prompt_make_paper.md
+
+# =========================
+# Template SICITE: os assets fazem parte do modelo oficial e precisam ser
+# versionados, senao o documento nao compila para quem clonar o repositorio.
+# Estas excecoes vem depois das regras gerais *.png e docs/**/*.pdf acima.
+# =========================
+!docs/sicite/configuracoes/assets/
+!docs/sicite/configuracoes/assets/*.png
+!docs/sicite/configuracoes/assets/*.jpg
+!docs/sicite/configuracoes/assets/*.pdf

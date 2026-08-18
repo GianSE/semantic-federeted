@@ -1,0 +1,7 @@
+# Arquivo usado automaticamente pelo Overleaf.
+# Pode ignorar: ele apenas faz o projeto compilar mais rapido com pdfLaTeX.
+
+$pdf_mode = 1;
+$pdflatex = 'pdflatex -interaction=nonstopmode -file-line-error -synctex=0 %O %S';
+$lualatex = 'lualatex -interaction=nonstopmode -file-line-error -synctex=0 %O %S';
+$xelatex = 'xelatex -interaction=nonstopmode -file-line-error -synctex=0 %O %S';

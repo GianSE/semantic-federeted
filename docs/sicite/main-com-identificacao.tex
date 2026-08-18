@@ -1,0 +1,40 @@
+% !TeX program = pdflatex
+% Overleaf: Menu > Compiler > pdfLaTeX para compilar mais rapido.
+%
+% Template LaTeX SICITE 2026 organizado e adaptado para Overleaf por:
+% Matheus Augusto de Paula Oliveira
+% Contato: matheusaugustooliveira@alunos.utfpr.edu.br
+% Este credito fica apenas no codigo-fonte e nao aparece no PDF.
+%
+% =========================================================
+% ARQUIVO PRINCIPAL - COM IDENTIFICACAO
+% =========================================================
+% No Overleaf, selecione este arquivo como "Main document" para gerar a
+% versao com autores, instituicoes, e-mail, agradecimentos e referencias
+% identificadas.
+%
+% Para preencher o trabalho, use os arquivos da pasta preenchimento/:
+% 1) preenchimento/dados-com-identificacao.tex
+% 2) preenchimento/resumo.tex
+% 3) preenchimento/agradecimentos-com-identificacao.tex
+% 4) preenchimento/referencias-com-identificacao.bib
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{sicite}
+\input{preenchimento/dados-com-identificacao}
+
+\begin{document}
+
+\sicitecabecalhocomidentificacao
+\input{preenchimento/resumo}
+\input{preenchimento/agradecimentos-com-identificacao}
+
+% As referencias completas ficam no arquivo .bib abaixo.
+% No texto, cite com \cite{chave-da-referencia}.
+% Esta linha lista todas as referencias do .bib, mesmo sem citacao no texto.
+% Para a versao final, apague ou comente se quiser mostrar apenas as citadas.
+% \nocite{*}  % desativado: todas as referencias do .bib sao citadas no texto
+\bibliographystyle{configuracoes/sicite-referencias}
+\bibliography{preenchimento/referencias-com-identificacao}
+
+\end{document}

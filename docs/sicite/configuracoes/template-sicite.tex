@@ -1,0 +1,327 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{sicite}[2026/06/30 Template LaTeX editavel para o SICITE]
+
+% Arquivo de estilo do template.
+% Template LaTeX SICITE 2026 organizado e adaptado para Overleaf por
+% Matheus Augusto de Paula Oliveira.
+% Contato: matheusaugustooliveira@alunos.utfpr.edu.br
+% Este credito fica apenas no codigo-fonte e nao aparece no PDF.
+% Arquivo de configuracao do template.
+% Normalmente nao e necessario alterar este arquivo.
+% Use esta pasta apenas para ajustes de fonte, margens, cabecalho ou espacamentos.
+% No uso normal, edite apenas os arquivos dentro da pasta preenchimento/.
+% No Overleaf, compile com pdfLaTeX para ganhar velocidade.
+
+\RequirePackage{iftex}
+\ifPDFTeX
+  \RequirePackage[utf8]{inputenc}
+  \RequirePackage[T1]{fontenc}
+  \IfFileExists{newtxtext.sty}
+    {\RequirePackage{newtxtext}}
+    {\RequirePackage{mathptmx}}
+\else
+  \RequirePackage{fontspec}
+  \setmainfont{TeX Gyre Termes}
+\fi
+
+\RequirePackage[brazilian]{babel}
+\RequirePackage[a4paper,top=3.42cm,bottom=3.25cm,left=2cm,right=2cm]{geometry}
+\RequirePackage{graphicx}
+\RequirePackage{xcolor}
+\RequirePackage{eso-pic}
+\RequirePackage[hidelinks]{hyperref}
+
+\DeclareMathSizes{11}{11}{7}{5}
+
+\graphicspath{{configuracoes/assets/}{./}}
+
+\definecolor{sicitegray}{HTML}{666666}
+
+% Estas tres linhas ficam editaveis nos arquivos main-*.tex com \renewcommand.
+\newcommand{\siciteeventtitle}{XXXI Semin\'ario de Inicia\c{c}\~ao Cient\'ifica e Tecnol\'ogica}
+\newcommand{\siciteeventsubtitle}{O que significa ser pesquisador(a) no s\'eculo XXI? Ci\^encia, forma\c{c}\~ao e transforma\c{c}\~ao social.}
+\newcommand{\siciteeventdate}{19 a 23 de outubro de 2026 - UTFPR, Corn\'elio Proc\'opio, PR}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+\raggedbottom
+\emergencystretch=2em
+\sloppy
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+\newcommand{\sicitefontsize}{%
+  \fontsize{11}{13.60}\selectfont
+  \spaceskip=0.32em plus 0.18em minus 0.08em\relax
+}
+\newcommand{\sicitesmall}{\fontsize{10}{11.20}\selectfont}
+\newcommand{\sicitesuperscript}[1]{%
+  \leavevmode\raisebox{0.55ex}{\fontsize{7}{7}\selectfont #1}%
+}
+\renewcommand{\textsuperscript}[1]{\sicitesuperscript{#1}}
+
+% Espacamentos do bloco inicial.
+% Regra geral: valor maior afasta; valor menor aproxima; valor negativo aproxima mais.
+% Unidades comuns: cm, mm, pt e em.
+\newcommand{\sicitespaceTitleAuthors}{0.06cm}
+\newcommand{\sicitespaceAuthorsAffiliation}{0.02cm}
+\newcommand{\sicitespaceAffiliationNext}{0.02cm}
+\newcommand{\sicitespaceEmailArea}{0.02cm}
+% Usado apenas no arquivo main-sem-identificacao.tex, entre o titulo e a area tematica.
+\newcommand{\sicitespaceTitleAreaSemIdentificacao}{0.6cm}
+
+% Espacamentos verticais entre blocos do corpo.
+% Area -> Palavras-chave -> RESUMO.
+\newcommand{\sicitespaceAreaKeywords}{0.75cm}
+\newcommand{\sicitespaceKeywordsResumo}{0.70cm}
+% Espaco antes de AGRADECIMENTOS e REFERENCIAS.
+\newcommand{\sicitespaceBetweenSections}{0.40cm}
+% Espaco entre cada titulo de secao e o primeiro texto abaixo dele.
+\newcommand{\sicitespaceAfterSectionTitle}{0.1cm}
+\newcommand{\sicitespaceAfterResumoTitle}{0.03cm}
+\newcommand{\sicitespaceAfterAgradecimentosTitle}{0.03cm}
+\newcommand{\sicitespaceAfterReferenciasTitle}{0.09cm}
+% Espaco horizontal entre "Contexto:" e o texto do resumo.
+\newcommand{\siciteresumoLabelGap}{0.32em}
+\newcounter{siciteSectionCount}
+
+% Ajustes do logo do cabecalho.
+% X/Y controlam a posicao do canto superior esquerdo do logo recortado.
+% No cabecalho, X e medido a partir da esquerda da pagina; Y e medido a partir do topo.
+% Para mover sem cortar, altere X/Y aos poucos e mantenha o logo dentro da pagina.
+% Width controla o tamanho do logo.
+% O trim do \includegraphics usa a ordem: esquerda baixo direita cima.
+\newcommand{\sicitelogoX}{2.0cm}
+\newcommand{\sicitelogoY}{2.88cm}
+\newcommand{\sicitelogoWidth}{4.5cm}
+% Altura da linha do rodape em relacao ao fim da pagina.
+\newcommand{\sicitefooterLineY}{2.85cm}
+
+% Ajustes das logos fixas do rodape.
+% X/Y controlam a posicao do canto superior esquerdo de cada logo.
+% X e medido a partir da esquerda da pagina; Y e medido a partir do fim da pagina.
+% Width/Height controlam o tamanho final no PDF.
+\newcommand{\sicitefooterCnpqFile}{footer-cnpq.pdf}
+\newcommand{\sicitefooterParanaFile}{footer-parana-fast.png}
+\newcommand{\sicitefooterSiciteFile}{footer-sicite.png}
+\newcommand{\sicitefooterUtfprFile}{footer-utfpr.png}
+\newcommand{\sicitefooterAraucariaFile}{footer-araucaria.jpg}
+
+\newcommand{\sicitefooterCnpqX}{2.35cm}
+\newcommand{\sicitefooterCnpqY}{2.35cm}
+\newcommand{\sicitefooterCnpqWidth}{3.45cm}
+\newcommand{\sicitefooterCnpqHeight}{1.47cm}
+
+\newcommand{\sicitefooterAraucariaX}{6.6cm}
+\newcommand{\sicitefooterAraucariaY}{2.46cm}
+\newcommand{\sicitefooterAraucariaWidth}{2.75cm}
+\newcommand{\sicitefooterAraucariaHeight}{1.80cm}
+
+\newcommand{\sicitefooterSiciteX}{10.45cm}
+\newcommand{\sicitefooterSiciteY}{2.54cm}
+\newcommand{\sicitefooterSiciteWidth}{2cm}
+\newcommand{\sicitefooterSiciteHeight}{2cm}
+
+\newcommand{\sicitefooterUtfprX}{13.6cm}
+\newcommand{\sicitefooterUtfprY}{1.95cm}
+\newcommand{\sicitefooterUtfprWidth}{2.40cm}
+\newcommand{\sicitefooterUtfprHeight}{0.95cm}
+
+\newcommand{\sicitefooterParanaX}{15.7cm}
+\newcommand{\sicitefooterParanaY}{2.75cm}
+\newcommand{\sicitefooterParanaWidth}{3.65cm}
+\newcommand{\sicitefooterParanaHeight}{2.44cm}
+
+\newcommand{\siciteputfromtop}[3]{%
+  \put(\LenToUnit{#1},\LenToUnit{-#2}){#3}%
+}
+
+\newcommand{\siciteputfrombottom}[3]{%
+  \put(\LenToUnit{#1},\LenToUnit{\dimexpr#2-\paperheight\relax}){#3}%
+}
+
+\newcommand{\sicitefooterlogo}[5]{%
+  \siciteputfrombottom{#2}{#3}{\raisebox{-#5}[0pt][0pt]{\includegraphics[width=#4,height=#5]{#1}}}%
+}
+
+\newcommand{\sicitedrawpage}{%
+  \AtPageUpperLeft{%
+    % Cabecalho fiel ao modelo enviado: logo a esquerda, texto editavel a direita.
+    \siciteputfromtop{\sicitelogoX}{\sicitelogoY}{%
+      \includegraphics[width=\sicitelogoWidth,trim=0cm 0.71cm 0cm 0.747cm,clip]{sicite-logo.png}%
+    }%
+
+    \siciteputfromtop{\dimexpr\paperwidth-2cm-16.97cm\relax}{1.88cm}{%
+      \parbox[t]{16.97cm}{%
+        {\fontsize{12}{12}\selectfont\bfseries\color{black}\makebox[\linewidth][r]{\siciteeventtitle}\par}
+        \vspace{0.015cm}
+        {\fontsize{9}{9.4}\selectfont\itshape\color{black}\makebox[\linewidth][r]{\siciteeventsubtitle}\par}
+        \vspace{0.015cm}
+        {\fontsize{9}{9.4}\selectfont\color{black}\makebox[\linewidth][r]{\siciteeventdate}\par}
+      }%
+    }%
+
+    \siciteputfromtop{2cm}{3.00cm}{%
+      \textcolor{sicitegray}{\rule{\dimexpr\paperwidth-4cm\relax}{1.35pt}}%
+    }%
+
+    % Linha e logos fixas do rodape.
+    \siciteputfrombottom{2cm}{\sicitefooterLineY}{%
+      \textcolor{sicitegray}{\rule{\dimexpr\paperwidth-4cm\relax}{0.35pt}}%
+    }%
+
+    \sicitefooterlogo{\sicitefooterCnpqFile}{\sicitefooterCnpqX}{\sicitefooterCnpqY}{\sicitefooterCnpqWidth}{\sicitefooterCnpqHeight}
+    
+    \sicitefooterlogo{\sicitefooterParanaFile}{\sicitefooterParanaX}{\sicitefooterParanaY}{\sicitefooterParanaWidth}{\sicitefooterParanaHeight}
+    
+    \sicitefooterlogo{\sicitefooterSiciteFile}{\sicitefooterSiciteX}{\sicitefooterSiciteY}{\sicitefooterSiciteWidth}{\sicitefooterSiciteHeight}
+    
+    \sicitefooterlogo{\sicitefooterUtfprFile}{\sicitefooterUtfprX}{\sicitefooterUtfprY}{\sicitefooterUtfprWidth}{\sicitefooterUtfprHeight}
+    
+    \sicitefooterlogo{\sicitefooterAraucariaFile}{\sicitefooterAraucariaX}{\sicitefooterAraucariaY}{\sicitefooterAraucariaWidth}{\sicitefooterAraucariaHeight}
+  }%
+}
+
+\newcommand{\sicitepagenumber}{%
+  \AtPageLowerLeft{%
+    \put(\LenToUnit{18.85cm},\LenToUnit{0.8cm}){%
+      {\fontsize{8}{8}\selectfont\color{black}\thepage}%
+    }%
+  }%
+}
+
+\AddToShipoutPictureFG{\sicitedrawpage}
+\AddToShipoutPictureFG{\sicitepagenumber}
+
+\newcommand{\sicitetitle}[1]{%
+  {\centering\fontsize{12}{12}\selectfont\bfseries #1\par}
+  \vspace{\sicitespaceTitleAuthors}
+}
+
+\newcommand{\siciteauthors}[1]{%
+  {\centering\sicitesmall\strut #1\par}
+  \vspace{\sicitespaceAuthorsAffiliation}
+}
+
+\newcommand{\siciteaffiliation}[1]{%
+  {\centering\sicitesmall\strut #1\par}
+  \vspace{\sicitespaceAffiliationNext}
+}
+
+\newcommand{\siciteemail}[1]{%
+  {\centering\sicitesmall\strut\textsuperscript{*}e-mail: \href{mailto:\detokenize{#1}}{\detokenize{#1}}\par}
+  \vspace{\sicitespaceEmailArea}
+}
+
+\newcommand{\sicitearea}[1]{%
+  {\centering\sicitesmall\strut\textbf{\'Area Tem\'atica:} #1\par}
+  \vspace{\sicitespaceAreaKeywords}
+}
+
+\newcommand{\sicitekeywords}[1]{%
+  {\sicitefontsize\noindent\textbf{Palavras-chave:} #1\par}
+  \vspace{\sicitespaceKeywordsResumo}
+}
+
+% Dados editaveis pelos usuarios nos arquivos preenchimento/dados-*.tex.
+% Estes valores padrao evitam erro caso algum campo seja removido sem querer.
+\newcommand{\sicitedadostitulo}{T\'ITULO EM LETRA MAI\'USCULA, TIMES NEW ROMAN, 12PT, CENTRALIZADO, NEGRITO}
+\newcommand{\sicitedadosautores}{Nome do(a) Autor(a) Principal\textsuperscript{1*}, Nome dos(as) Coautores\textsuperscript{2}, Nome do Orientador\textsuperscript{1} (Times New Roman, 10pt, centralizado)}
+\newcommand{\sicitedadosafiliacoes}{%
+  \siciteaffiliation{\textsuperscript{1}Universidade Tecnol\'ogica Federal do Paran\'a, Campus [Cidade]}%
+  \siciteaffiliation{\textsuperscript{2}Nome da Institui\c{c}\~ao 2}%
+}
+\newcommand{\sicitedadosemail}{email_do_autor_principal@alunos.utfpr.edu.br}
+\newcommand{\sicitedadosarea}{[N\'umero da \'area tem\'atica] -- Nome da \'area tem\'atica}
+\newcommand{\sicitedadospalavraschave}{Inserir de tr\^es a cinco palavras-chave; separadas por ponto e v\'irgula; Times New Roman; 11pt; justificado.}
+
+\newcommand{\sicitecabecalhocomidentificacao}{%
+  \sicitetitle{\sicitedadostitulo}
+  \siciteauthors{\sicitedadosautores}
+  \sicitedadosafiliacoes
+  \expandafter\siciteemail\expandafter{\sicitedadosemail}
+  \sicitearea{\sicitedadosarea}
+  \sicitekeywords{\sicitedadospalavraschave}
+}
+
+\newcommand{\sicitecabecalhosemidentificacao}{%
+  \sicitetitle{\sicitedadostitulo}
+  \vspace{\sicitespaceTitleAreaSemIdentificacao}
+  \sicitearea{\sicitedadosarea}
+  \sicitekeywords{\sicitedadospalavraschave}
+}
+
+\newcommand{\sicitesection}[2][\sicitespaceAfterSectionTitle]{%
+  \par
+  \ifnum\value{siciteSectionCount}>0
+    \vspace{\sicitespaceBetweenSections}%
+  \fi
+  \stepcounter{siciteSectionCount}%
+  {\sicitefontsize\noindent\bfseries #2\par}
+  \vspace{#1}
+}
+
+\newcommand{\siciteparagraph}[1]{%
+  {\sicitefontsize\noindent #1\par}
+}
+
+\newcommand{\siciteresumoitem}[2]{%
+  {\sicitefontsize\noindent\textit{#1:}\nobreak\hspace{\siciteresumoLabelGap}#2\par}
+}
+
+\newcommand{\siciterefintro}[1]{%
+  \siciteparagraph{#1}
+}
+
+\newcommand{\siciteref}[2]{%
+  {\sicitefontsize\noindent[#1] #2\par}
+}
+
+\makeatletter
+% O arquivo .bst altera esta chave para falso quando encontra ao menos uma
+% referencia real. Entradas cujas chaves comecam por "modelo-" sao apenas os
+% exemplos distribuidos com o template.
+\newif\ifsicitereferenciasmodelo
+\sicitereferenciasmodelotrue
+\renewenvironment{thebibliography}[1]
+  {%
+    \sicitesection[\sicitespaceAfterReferenciasTitle]{REFER\^ENCIAS}%
+    \sicitefontsize
+    \ifsicitereferenciasmodelo
+      \siciteparagraph{%
+        Deve-se utilizar no texto o formato: trabalho\textsuperscript{[1]}.
+        Apesar deste par\'agrafo de instru\c{c}\~oes, nesta se\c{c}\~ao deve-se
+        apresentar apenas a lista de refer\^encias como no exemplo a seguir. As
+        refer\^encias devem ser alinhadas \`a esquerda.%
+      }%
+    \fi
+    \setcounter{enumiv}{0}%
+    \let\p@enumiv\@empty
+    \renewcommand\theenumiv{\@arabic\c@enumiv}%
+    \def\@bibitem##1{%
+      \par\refstepcounter{enumiv}%
+      \if@filesw
+        \immediate\write\@auxout{\string\bibcite{##1}{\theenumiv}}%
+      \fi
+      \noindent[\theenumiv]~\ignorespaces
+    }%
+    \def\@lbibitem[##1]##2{%
+      \par\refstepcounter{enumiv}%
+      \if@filesw
+        \immediate\write\@auxout{\string\bibcite{##2}{##1}}%
+      \fi
+      \noindent[##1]~\ignorespaces
+    }%
+    \sloppy
+    \clubpenalty4000
+    \@clubpenalty \clubpenalty
+    \widowpenalty4000
+    \sfcode`\.=\@m
+  }
+  {%
+    \def\@noitemerr{\@latex@warning{Ambiente thebibliography vazio}}%
+    \par
+  }
+\makeatother
+
+\AtBeginDocument{\sicitefontsize\pagestyle{empty}}

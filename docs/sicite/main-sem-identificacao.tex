@@ -1,0 +1,39 @@
+% !TeX program = pdflatex
+% Overleaf: Menu > Compiler > pdfLaTeX para compilar mais rapido.
+%
+% Template LaTeX SICITE 2026 organizado e adaptado para Overleaf por:
+% Matheus Augusto de Paula Oliveira
+% Contato: matheusaugustooliveira@alunos.utfpr.edu.br
+% Este credito fica apenas no codigo-fonte e nao aparece no PDF.
+%
+% =========================================================
+% ARQUIVO PRINCIPAL - SEM IDENTIFICACAO
+% =========================================================
+% No Overleaf, selecione este arquivo como "Main document" para gerar a
+% versao anonima, sem autores, instituicoes, e-mail ou outros dados de autoria.
+%
+% Para preencher o trabalho, use os arquivos da pasta preenchimento/:
+% 1) preenchimento/dados-sem-identificacao.tex
+% 2) preenchimento/resumo.tex
+% 3) preenchimento/agradecimentos-sem-identificacao.tex
+% 4) preenchimento/referencias-sem-identificacao.bib
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{sicite}
+\input{preenchimento/dados-sem-identificacao}
+
+\begin{document}
+
+\sicitecabecalhosemidentificacao
+\input{preenchimento/resumo}
+\input{preenchimento/agradecimentos-sem-identificacao}
+
+% As referencias anonimizadas ficam no arquivo .bib abaixo.
+% Use as mesmas chaves da versao com identificacao.
+% Esta linha lista todas as referencias do .bib, mesmo sem citacao no texto.
+% Para a versao final, apague ou comente se quiser mostrar apenas as citadas.
+% \nocite{*}  % desativado: todas as referencias do .bib sao citadas no texto
+\bibliographystyle{configuracoes/sicite-referencias}
+\bibliography{preenchimento/referencias-sem-identificacao}
+
+\end{document}
