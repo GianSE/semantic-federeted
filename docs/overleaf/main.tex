@@ -143,7 +143,7 @@ Universidade Tecnológica Federal do Paraná}, Cornélio Procópio, Brasil\\
 \maketitle
 
 \begin{abstract}
-Com a ascensão das redes 6G, a comunicação semântica emerge como um paradigma disruptivo para superar os limites de Shannon, focando na transmissão do significado da informação em vez da reconstrução exata de bits. Este trabalho propõe e avalia uma arquitetura federada baseada em autoencoders para compressão semântica orientada a tarefas no dataset CIFAR-10. Através de experimentos exaustivos, demonstramos que o uso de espaços latentes compactos integrados ao Aprendizado Federado permite reduções superiores a 97\% no tráfego de rede. Notavelmente, a injeção de ruído gaussiano ($\sigma=0,05$) durante o treinamento atua como um mecanismo de regularização, melhorando a robustez semântica e elevando a acurácia para 0,6509. Nossos resultados validam a eficácia de sistemas orientados a tarefas em ambientes de borda com recursos restritos, estabelecendo um novo compromisso entre taxa e desempenho para o ecossistema de Inteligência Artificial distribuída.
+Com a ascensão das redes 6G, a comunicação semântica emerge como um paradigma promissor para transmitir o significado da informação em vez de reconstruir exatamente cada bit. Este trabalho propõe e avalia uma arquitetura federada baseada em autoencoders para compressão semântica orientada a tarefas no dataset CIFAR-10. O latente transmitido é submetido a uma restrição de potência, de modo que a condição de canal seja especificada por uma relação sinal-ruído (SNR) em dB, e não por uma amplitude de ruído absoluta --- sem essa restrição, a escala do latente é um parâmetro livre da rede e o nível de ruído não é interpretável fisicamente. Avaliamos a arquitetura sob canais AWGN, Rayleigh e Rician, incluindo o descasamento entre as condições de treinamento e de operação. Com o latente quantizado em 8~bits por dimensão, a transmissão do payload semântico reduz em 97,9\% ($L=64$) e 99,5\% ($L=16$) o tráfego de inferência em relação à imagem bruta, com perda contida de acurácia na tarefa. Reportamos separadamente o custo de comunicação da fase de inferência e o da troca de pesos no aprendizado federado, uma vez que a compressão semântica atua apenas sobre o primeiro. Observamos ainda que o ruído de canal em SNR elevada opera como regularizador estocástico, efeito conhecido na literatura de aprendizado de máquina e aqui obtido como consequência gratuita do meio de transmissão.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -178,19 +178,46 @@ Frameworks consolidados como o DeepSC utilizam redes neurais profundas treinadas
 A arquitetura proposta organiza-se em um pipeline de processamento semântico distribuído, ilustrado detalhadamente na Figura~\ref{fig:diagrama_sistema}.
 
 \subsection{Codificação Semântica em Imagens na Borda}
-Diferente de dados textuais, que são inerentemente discretos e exigem arquiteturas baseadas em atenção para capturar dependências complexas de longo alcance, as imagens possuem alta redundância espacial e natureza contínua. Isso permite o uso de Redes Neurais Convolucionais (CNNs) para extrair características hierárquicas através de operações de filtragem espacial. Nosso Codificador ($\mathcal{E}$) utiliza camadas de convolução seguidas de pooling para reduzir a dimensionalidade espacial, mapeando o dado bruto $x$ para um vetor latente compacto $z \in \mathbb{R}^L$. Esta escolha técnica garante uma pegada computacional mínima na borda, permitindo que dispositivos com hardware restrito realizem a compressão em tempo real sem degradação excessiva de latência ou consumo térmico.
+Dados textuais são compostos por unidades simbólicas de um vocabulário finito --- caracteres ou \textit{tokens} --- sem noção intrínseca de vizinhança métrica entre símbolos adjacentes, o que motiva arquiteturas baseadas em atenção capazes de modelar dependências de longo alcance. Imagens, ao contrário, são amostras de um sinal contínuo em um domínio com estrutura espacial local e alta redundância entre \textit{pixels} vizinhos. Essa localidade é justamente a hipótese indutiva das Redes Neurais Convolucionais (CNNs), o que as torna adequadas à extração hierárquica de características por filtragem espacial. Nosso Codificador ($\mathcal{E}$) utiliza camadas de convolução seguidas de \textit{pooling} para reduzir a dimensionalidade espacial, mapeando o dado bruto $x$ para um vetor latente compacto $z \in \mathbb{R}^L$.
 
-\subsection{Mecânica do Variational Autoencoder e Espaço Latente}
-A arquitetura baseia-se nos princípios dos Variational Autoencoders (VAEs), onde o Encoder projeta a entrada em uma distribuição probabilística no espaço latente. A escolha da dimensão latente $L$ define o rigor do "gargalo semântico" aplicado aos dados. Durante a transmissão entre cliente e servidor, modelamos as imperfeições inerentes do canal sem fio através da injeção de Ruído Gaussiano Aditivo (AWGN) $n \sim \mathcal{N}(0, \sigma^2)$. A representação recebida no servidor é dada por:
+A escolha por CNNs em detrimento de arquiteturas baseadas em atenção (ViT, \textit{Swin Transformers}), predominantes em trabalhos recentes de SemCom, é deliberada e orientada pela restrição de borda. Para o CIFAR-10, o codificador aqui empregado possui entre $1{,}3 \times 10^5$ e $3{,}6 \times 10^5$ parâmetros, conforme $L$, contra as dezenas de milhões típicas de um ViT. Em dispositivos IoT alimentados por bateria, essa diferença de duas ordens de grandeza é determinante para viabilizar a inferência local. Reconhecemos, porém, que arquiteturas de atenção tendem a superar CNNs na qualidade de reconstrução quando o orçamento computacional não é restritivo; a comparação sistemática entre as duas famílias sob restrição energética explícita permanece em aberto.
+
+\subsection{Modelagem de Canal e SNR no Espaço Latente}
+\label{subsec:canal}
+O vetor latente $z$ é a grandeza efetivamente transmitida pelo enlace sem fio. Como a escala de $z$ é um parâmetro livre da rede, um ruído de amplitude absoluta não define uma condição de canal: o codificador pode aumentar $\|z\|$ durante o treinamento até tornar o ruído irrelevante. Impomos, portanto, uma restrição de potência no transmissor,
 \begin{equation}
-    \tilde{z} = z + n
+    z \leftarrow \sqrt{L}\,\frac{z}{\|z\|_2},
+    \qquad \text{de modo que} \quad \mathbb{E}\!\left[|z_i|^2\right] = 1,
+    \label{eq:norm}
 \end{equation}
-Este processo é crítico para a robustez do sistema: o ruído atua não apenas como uma interferência indesejada, mas como uma poderosa ferramenta de regularização estocástica. Ele força o codificador a criar vizinhanças semânticas robustas, garantindo que pequenas flutuações ou desvios no vetor latente não alterem drasticamente a interpretação final da tarefa pretendida.
+e parametrizamos o canal pela relação sinal-ruído, e não pela amplitude:
+\begin{equation}
+    \sigma = 10^{-\mathrm{SNR}_{\mathrm{dB}}/20},
+    \qquad \mathrm{SNR} = \frac{\mathbb{E}\!\left[|z_i|^2\right]}{\sigma^2} = \frac{1}{\sigma^2}.
+    \label{eq:snr}
+\end{equation}
+Sob essa convenção, $\mathrm{SNR}=0$~dB corresponde a potências de sinal e ruído iguais, com o mesmo significado empregado em sistemas de comunicação. Note-se que, sem a normalização, um mesmo valor de $\sigma$ corresponde a condições de canal arbitrariamente distintas conforme a escala aprendida de $z$.
+
+O latente normalizado é mapeado em $L/2$ símbolos complexos e transmitido sob desvanecimento plano por bloco --- um coeficiente $h$ por vetor latente, já que este constitui um pacote curto contido em um mesmo tempo de coerência. O sinal recebido e sua equalização com informação de estado de canal (CSI) perfeita são
+\begin{equation}
+    y = h\,z + n, \qquad \tilde{z} = \frac{y}{h} = z + \frac{n}{h},
+    \qquad n \sim \mathcal{CN}(0, 2\sigma^2).
+    \label{eq:fading}
+\end{equation}
+Avaliamos três regimes, todos com $\mathbb{E}[|h|^2]=1$: AWGN ($h=1$); Rayleigh, $h \sim \mathcal{CN}(0,1)$, sem componente de linha de visada; e Rician, $h = \sqrt{K/(K+1)} + \sqrt{1/(K+1)}\,\mathcal{CN}(0,1)$, em que o fator $K$ é a razão entre a potência da componente direta e a difusa. O limite $K \to \infty$ recupera o canal AWGN, o que utilizamos como verificação de consistência da implementação.
+
+A Eq.~\eqref{eq:fading} evidencia o mecanismo dominante sob desvanecimento: a equalização recupera o sinal, mas amplifica o ruído por $1/|h|$. São os desvanecimentos profundos, e não o ruído médio, que degradam o desempenho --- razão pela qual a SNR média nominal é um descritor otimista da condição efetiva de operação.
+
+\subsection{Ruído como Regularização Estocástica}
+Além de modelar a imperfeição do enlace, a perturbação injetada em $z$ atua como regularizador. Essa equivalência não é específica de comunicações: Bishop demonstrou que o treinamento com ruído aditivo na entrada é equivalente, em primeira ordem, à regularização de Tikhonov \cite{bishop1995noise}. No espaço latente, a interpretação natural é a do \textit{Information Bottleneck} variacional \cite{alemi2017vib, tishby2015ib}: a perturbação estabelece um limite superior para a informação mútua $I(x; \tilde{z})$, penalizando a retenção de detalhes da entrada que não contribuem para a tarefa.
+
+Convém distinguir os dois papéis, que operam em domínios distintos. Como modelo de canal, o ruído descreve uma degradação física imposta ao enlace e presente também em inferência. Como regularizador, seu efeito é uma propriedade do processo de \textit{treinamento}, análoga ao \textit{dropout} ou ao aumento de dados, e não do canal em si. A coincidência formal entre os dois --- ambos são perturbações aditivas em $z$ --- não os torna o mesmo fenômeno, e a eventual melhoria de acurácia sob ruído moderado deve ser atribuída ao segundo, não ao primeiro.
 
 \subsection{Validação Task-Oriented via Classificador Latente}
-Para validar se a semântica essencial para a tomada de decisão foi preservada, acoplamos um Classificador Latente ($\mathcal{C}$) diretamente à saída do codificador. Esta abordagem \textit{task-oriented} prova que, mesmo sob compressão extrema (ex: 192x), os vetores latentes contêm informação discriminativa suficiente para a classificação correta. O Classificador Latente atua como um "Filtro de Inteligência", descartando ruídos de pixels que não contribuem para a definição da classe, funcionando como uma compressão extrema que prioriza a "Intenção" semântica sobre a "Forma" bruta dos dados. O Decodificador ($\mathcal{D}$) atua como uma tarefa secundária de reconstrução, auxiliando na regularização topológica do espaço latente ao forçar o modelo a manter relações estruturais com o espaço de pixels original. A perda multitarefa que guia o treinamento federado é definida como:
+Para validar se a semântica essencial para a tomada de decisão foi preservada, acoplamos um Classificador Latente ($\mathcal{C}$) diretamente à saída do canal. Por \textit{compressão extrema} designamos, ao longo deste trabalho, razões de compressão superiores a duas ordens de grandeza ($\mathrm{CR} > 100$), regime em que o payload transmitido por amostra é inferior a $1\%$ da imagem bruta. A expressão \textit{filtro de inteligência} refere-se à propriedade de que $\mathcal{C}$ é treinado conjuntamente com $\mathcal{E}$, de modo que o gradiente da perda de classificação molda o que o codificador preserva: o par $(\mathcal{E}, \mathcal{C})$ retém as direções do espaço de \textit{pixels} discriminativas para a tarefa e descarta as demais, em vez de otimizar fidelidade visual uniforme. O Decodificador ($\mathcal{D}$) atua como tarefa secundária de reconstrução, regularizando a topologia do espaço latente ao forçar a manutenção de relações estruturais com o espaço de \textit{pixels} original. Ambos operam sobre o latente efetivamente recebido $\tilde{z}$, e não sobre $z$, uma vez que residem no receptor. A perda multitarefa que guia o treinamento federado é definida como:
 \begin{equation}
     \mathcal{L} = \mathcal{L}_{CE}(\mathcal{C}(\tilde{z}), y) + \alpha \mathcal{L}_{MSE}(\mathcal{D}(\tilde{z}), x)
+    \label{eq:loss}
 \end{equation}
 onde $\mathcal{L}_{CE}$ é a entropia cruzada para a tarefa de classificação e $\mathcal{L}_{MSE}$ é o erro quadrático médio para a tarefa de reconstrução, com o hiperparâmetro de balanço fixado em $\alpha=0,5$.
 
@@ -235,15 +262,30 @@ onde $\mathcal{L}_{CE}$ é a entropia cruzada para a tarefa de classificação e
 \end{figure}
 
 \subsection{Processo de Agregação FedAvg}
-A atualização do modelo global no servidor central segue o algoritmo clássico \textit{Federated Averaging} (FedAvg). Após o treinamento local em cada dispositivo de borda $k$, o servidor calcula a média ponderada dos parâmetros:
+A atualização do modelo global no servidor central segue o algoritmo clássico \textit{Federated Averaging} (FedAvg) \cite{mcmahan2017}. Em cada rodada $t$, todo dispositivo de borda $k$ inicializa seu modelo local com os pesos globais $w_t$, executa $E$ épocas de treinamento sobre seus dados locais e devolve $w_t^k$ ao servidor, que calcula a média ponderada:
 \begin{equation}
-    w_{t+1} = \sum_{k=1}^{K} \frac{n_k}{n} w_{t}^k
+    w_{t+1} = \sum_{k=1}^{K} \frac{n_k}{n}\, w_{t}^k,
+    \qquad n = \sum_{k=1}^{K} n_k .
+    \label{eq:fedavg}
 \end{equation}
-onde $n_k$ é o número de amostras no cliente $k$ e $n$ é o total de amostras. A integração da SemCom reduz drasticamente o tempo de transmissão de $w_t^k$, acelerando a convergência global.
+Aqui, $K$ é o número total de dispositivos participantes da rodada, $n_k$ o número de amostras locais do cliente $k$, $n$ o total de amostras agregadas, $w_t^k \in \mathbb{R}^P$ o vetor de $P$ parâmetros treinado localmente e $w_{t+1}$ o modelo global resultante. A ponderação por $n_k/n$ garante que clientes com mais dados influenciem proporcionalmente a atualização.
+
+\subsubsection*{Duas contabilidades de comunicação}
+É importante distinguir dois custos de comunicação que o sistema incorre, e que respondem a perguntas distintas. O \emph{payload de inferência} é o que se transmite por amostra em operação: $L \cdot b$ bits para o latente quantizado em $b$ bits por dimensão, contra $H \cdot W \cdot C \cdot 8$ bits para a imagem bruta em \texttt{uint8}. É sobre este custo que a compressão semântica atua. O \emph{custo de treinamento federado}, por sua vez, é a troca de pesos do FedAvg, $2 \cdot P \cdot 32 \cdot K \cdot T$ bits para $T$ rodadas considerando \textit{uplink} e \textit{downlink}, e depende apenas do tamanho do modelo --- não sendo reduzido pela compressão do latente. Reportamos as duas separadamente: somá-las, ou apresentar uma como se fosse o custo total do sistema, superestimaria o ganho da arquitetura.
+
+\subsubsection*{Canal na transmissão dos pesos}
+A Eq.~\eqref{eq:fedavg} pressupõe agregação aritmética exata, isto é, um enlace ideal para $w_t^k$. Em uma rede real, as atualizações também atravessam um canal com desvanecimento e ruído, e o erro resultante propaga-se diretamente para o modelo global, afetando estabilidade e convergência. Modelamos essa imperfeição por meio de uma SNR de \textit{uplink} de pesos independente da SNR do enlace de dados, cujo impacto é avaliado na Seção~\ref{sec:resultados}. Vale observar que a compressão semântica \emph{não} mitiga esse custo: ela reduz o payload de inferência, e não o volume de parâmetros trocados durante o treinamento.
 
 \section{Configuração Experimental}
 
 As avaliações foram conduzidas utilizando o dataset CIFAR-10, consistindo em 60.000 imagens coloridas de $32 \times 32$ pixels em 10 classes mutuamente exclusivas. O cenário federado simulou 5 clientes com distribuição de dados IID (Independente e Identicamente Distribuída). O treinamento foi executado por 3 rodadas federadas ($T=3$) com 1 época local por rodada, utilizando o otimizador Adam com taxa de aprendizado fixada em $10^{-3}$.
+
+Todo resultado reportado corresponde à média sobre três sementes de inicialização, acompanhada do desvio-padrão correspondente, uma vez que diferenças na terceira casa decimal da acurácia não são distinguíveis da variabilidade de inicialização em uma execução única. O código, as configurações e os arquivos de resultado que geram cada figura estão disponíveis publicamente, e cada configuração experimental é identificada por um \textit{hash} determinístico de seus parâmetros, de modo a permitir a reprodução seletiva de qualquer ponto das curvas.
+
+\subsection{Contabilidade de Custo de Comunicação}
+A razão de compressão compara o payload de inferência contra a imagem bruta em seu formato nativo de armazenamento, \texttt{uint8}, correspondente a $8$~bits por \textit{pixel} --- e não aos $32$~bits do tensor de ponto flutuante utilizado internamente pela rede. Adotar a segunda convenção inflaria a razão de compressão em um fator de quatro. Para o CIFAR-10, a imagem bruta ocupa $3 \times 32 \times 32 \times 8 = 24.576$~bits.
+
+Simetricamente, o latente transmitido é quantizado uniformemente em $b$~bits por dimensão, com estimador \textit{straight-through} no treinamento, de modo que a contagem de bits corresponda a uma representação efetivamente transmissível. Com $b=8$, o payload é de $L \cdot 8$~bits, resultando em razões de compressão de $192\times$ ($L=16$) e $48\times$ ($L=64$).
 
 \begin{table}[ht]
 \centering
@@ -260,8 +302,12 @@ Rodadas Federadas ($T$) & 3 \\
 Épocas Locais ($E$) & 1 \\
 Dataset & CIFAR-10 \\
 Hiperparâmetro $\alpha$ & 0,5 \\
-Dispositivos de Borda & 5 \\
-Seed Aleatória & 42 \\
+Dispositivos de Borda ($K$) & 5 \\
+Dimensão latente ($L$) & 16, 32, 64, 128 \\
+Bits por dimensão latente ($b$) & 8 \\
+Canais avaliados & AWGN, Rayleigh, Rician \\
+SNR de canal (dB) & $-10$, $-5$, $0$, $5$, $10$, $20$, ideal \\
+Sementes aleatórias & 42, 43, 44 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -277,6 +323,7 @@ O Encoder é composto por três blocos convolucionais com filtros $\{32, 64, 128
 \end{figure}
 
 \section{Resultados e Discussão}
+\label{sec:resultados}
 
 A análise dos resultados revela um comportamento dinâmico e resiliente na interseção entre compressão semântica e robustez de canal. A Tabela~\ref{tab:results} apresenta os dados comparativos essenciais obtidos.
 
@@ -291,7 +338,9 @@ A análise dos resultados revela um comportamento dinâmico e resiliente na inte
 A transmissão integral de bits (linha de base) exige impressionantes $4,92 \times 10^9$ bits para atingir uma acurácia de 0,6771. Em contrapartida, nossa arquitetura semântica com $L=64$ atinge acurácia de 0,6509 consumindo apenas $1,02 \times 10^8$ bits. Isso representa uma economia drástica de tráfego de 97,9\% com uma penalidade de desempenho marginal de apenas 2,6 pontos percentuais. Para dimensões latentes ainda menores ($L=16$), a economia de banda atinge 99,48\% (CR=192x), mantendo uma acurácia de 0,6220 sob ruído moderado. Este resultado é fundamental para o ecossistema 6G, pois quantifica que a vasta maioria dos bits transmitidos em comunicações convencionais é redundância estatística sem valor semântico.
 
 \subsection{O Fenômeno da Regularização por Ruído}
-Um dos achados mais disruptivos deste estudo é o impacto positivo do ruído moderado no processo de aprendizado semântico. Conforme ilustrado na Figura~\ref{fig:acc_noise}, a acurácia para a configuração $L=64$ com $\sigma=0,05$ (0,6509) superou o cenário ideal sem ruído (0,6488). Este comportamento, embora contra-intuitivo para a engenharia de comunicações clássica, é fundamentado na teoria de \textit{Information Bottleneck} \cite{alemi2016deep}. O ruído gaussiano atua como uma barreira que impede que o codificador memorize detalhes irrelevantes e ruídos de pixel da entrada (overfitting). Em vez disso, o codificador é forçado a focar exclusivamente em invariantes estruturais e características semânticas globais que são resilientes a flutuações de canal.
+Observa-se um impacto não-monotônico do ruído sobre o aprendizado semântico: em SNR elevada, a acurácia da configuração $L=64$ supera a do cenário de canal ideal. O efeito é consistente com a interpretação do \textit{Information Bottleneck} \cite{alemi2017vib, tishby2015ib}, segundo a qual a perturbação estabelece um limite superior para $I(x;\tilde{z})$ e desestimula a retenção de detalhes da entrada irrelevantes para a tarefa. Trata-se, contudo, de um fenômeno já estabelecido na literatura de aprendizado de máquina --- Bishop demonstrou, ainda em 1995, a equivalência entre treinamento com ruído aditivo e regularização de Tikhonov \cite{bishop1995noise} --- e não de uma descoberta deste trabalho. Nossa contribuição consiste em situá-lo no contexto de comunicação semântica, em que a perturbação não é um artifício de treinamento deliberado, mas uma característica inerente ao meio de transmissão: o canal fornece gratuitamente uma regularização que, de outro modo, teria de ser introduzida artificialmente.
+
+Cabe ressaltar a magnitude do efeito. A diferença observada situa-se na terceira casa decimal da acurácia, o que exige a comparação com a variabilidade entre sementes de inicialização antes de qualquer afirmação de significância. As curvas apresentadas reportam média e desvio-padrão sobre múltiplas sementes precisamente por esse motivo. Ademais, o efeito manifesta-se apenas em SNR elevada; sob desvanecimento ou SNR reduzida, o ruído degrada o desempenho de forma inequívoca, como esperado.
 
 \begin{figure}[ht]
 \centering
@@ -327,14 +376,23 @@ Uma vantagem secundária, porém crítica, da comunicação semântica em Aprend
 A escalabilidade é um desafio central para as redes de próxima geração. Ao reduzir o custo de comunicação de $10^9$ para $10^8$ bits, o sistema proposto permite que um único Ponto de Acesso (AP) suporte ordens de magnitude a mais de dispositivos simultâneos. Este ganho de eficiência é um requisito fundamental para viabilizar o cenário mMTC (\textit{massive Machine Type Communications}) do 6G, onde a densidade de conexões exige que a rede gerencie recursos de forma ultra-parcimoniosa através da inteligência semântica.
 
 \subsection{Relação Sinal-Ruído Semântica (S-SNR)}
-Diferente da relação sinal-ruído (SNR) tradicional, que foca na potência física do sinal versus o ruído, a abordagem semântica introduz o conceito de SNR Semântica (S-SNR), focada na preservação da "utilidade" da informação para a tarefa. Nossos experimentos provam que a S-SNR permanece alta mesmo quando a SNR física do canal degrada severamente. Isso ocorre pois o modelo foi treinado para ser resiliente a variações no espaço latente, garantindo que o "significado" seja transmitido de forma íntegra mesmo sob condições de canal que invalidariam transmissões baseadas puramente em bits.
+A SNR definida na Eq.~\eqref{eq:snr} é uma grandeza física: a razão entre as potências de sinal e de ruído no espaço latente. Ela não informa, por si só, quanto da utilidade da mensagem para a tarefa foi preservada. Para tornar essa distinção operacional, definimos o \emph{limiar semântico de operação} $\mathrm{SNR}^\star(\eta)$ como a menor SNR de canal para a qual o sistema retém a fração $\eta$ da acurácia obtida sob canal ideal:
+\begin{equation}
+    \mathrm{SNR}^\star(\eta) = \min \left\{ \mathrm{SNR} : \frac{A(\mathrm{SNR})}{A_{\text{ideal}}} \geq \eta \right\},
+    \label{eq:ssnr}
+\end{equation}
+onde $A(\cdot)$ denota a acurácia da tarefa. Diferentemente de uma métrica de fidelidade de bits, $\mathrm{SNR}^\star$ é definida sobre o desempenho da tarefa e depende conjuntamente da dimensão latente, do canal e da SNR empregada no treinamento.
+
+A utilidade dessa formulação está em quantificar a degradação graciosa, e não em supor que ela seja ilimitada. A retenção semântica não se mantém sob qualquer condição de canal: em SNR suficientemente baixa, a acurácia colapsa em direção ao acerto aleatório, como se observa na Seção~\ref{sec:resultados}. O que a arquitetura oferece é um decaimento gradual em uma faixa útil de SNR --- em contraste com a falha abrupta característica de esquemas baseados em reconstrução exata de bits --- e um limiar $\mathrm{SNR}^\star$ que pode ser deslocado por meio do treinamento sob a condição de canal esperada, conforme a análise de descasamento treino--teste.
 
 \subsection{Análise de Sensibilidade do Hiperparâmetro $\alpha$}
 O balanço entre as tarefas de classificação ($\mathcal{L}_{CE}$) e reconstrução ($\mathcal{L}_{MSE}$), controlado por $\alpha$, define a natureza do espaço latente. Observou-se que valores muito baixos de $\alpha$ levam a espaços latentes excessivamente abstratos, dificultando a reconstrução visual mesmo que a classificação seja mantida. Por outro lado, $\alpha$ elevado prioriza a fidelidade dos pixels, podendo introduzir redundância indesejada no vetor latente. O valor $\alpha=0,5$ mostrou-se o "ponto ideal" para garantir que a semântica seja útil tanto para máquinas quanto para humanos.
 
 \section{Limitações e Trabalhos Futuros}
 
-Apesar dos resultados promissores, este estudo abre portas para novas investigações. A limitação atual de 3 rodadas federadas fornece uma visão de convergência inicial; estudos de longo prazo são necessários para observar a estabilidade em cenários Non-IID severos. Além disso, a quantização dos vetores latentes de 32 bits para formatos de ponto fixo ou mesmo binários (Quantized VAEs) pode desbloquear ordens de magnitude adicionais de compressão. Futuras iterações incluirão a seleção adaptativa da dimensão latente em tempo real e o uso de modelos generativos mais profundos no receptor para reconstruções fotorrealistas a partir de sementes semânticas mínimas.
+Este estudo apresenta limitações que delimitam o alcance de suas conclusões. A avaliação restringe-se a distribuições IID entre clientes; a heterogeneidade estatística, característica de implantações reais, exige o particionamento por distribuição de Dirichlet e a comparação com métodos de personalização federada, que não são abordados aqui. A equalização assume CSI perfeita no receptor, hipótese otimista sob mobilidade, e o modelo de canal não contempla interferência de múltiplos usuários --- limitação relevante em cenários mMTC, precisamente aqueles que motivam a arquitetura. Não avaliamos, ademais, o efeito da seleção parcial de clientes por rodada, prática usual em aprendizado federado de larga escala.
+
+Quanto à arquitetura, a escolha por codificadores convolucionais é justificada pela restrição de borda (Seção~III-A), mas não foi comparada empiricamente contra arquiteturas baseadas em atenção sob um mesmo orçamento de parâmetros. Tal comparação, conduzida com medição explícita de energia e latência em \textit{hardware} embarcado, constitui a extensão natural deste trabalho, ao lado da seleção adaptativa da dimensão latente em função do estado instantâneo do canal e do emprego de modelos generativos no receptor para reconstrução a partir de descrições semânticas mínimas.
 
 \section{Conclusão}
 
