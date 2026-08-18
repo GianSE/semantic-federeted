@@ -25,6 +25,11 @@ RAIZ = Path(__file__).parent
 SAIDA = RAIZ / "build"
 LIMITE_PAGINAS = 2
 
+# As duas versoes compartilham o mesmo nome-base de proposito: um nome de
+# arquivo que identificasse o autor anularia o anonimato da avaliacao cega.
+DOC_COM = "sicite2026-comunicacao-semantica-federada-com-identificacao"
+DOC_SEM = "sicite2026-comunicacao-semantica-federada-sem-identificacao"
+
 # Termos que jamais devem aparecer na versao destinada a avaliacao cega.
 TERMOS_AUTORIA = [
     "Gian", "Pedro Rodrigues", "Herman", "dos Santos",
@@ -135,10 +140,10 @@ def main():
 
     tudo_ok = True
     if fazer_com:
-        tudo_ok &= relatorio("main-com-identificacao", "VERSAO COM IDENTIFICACAO (anais)")
+        tudo_ok &= relatorio(DOC_COM, "VERSAO COM IDENTIFICACAO (anais)")
     if fazer_sem:
         tudo_ok &= relatorio(
-            "main-sem-identificacao", "VERSAO SEM IDENTIFICACAO (avaliacao cega)",
+            DOC_SEM, "VERSAO SEM IDENTIFICACAO (avaliacao cega)",
             checar_anonimato=True,
         )
 

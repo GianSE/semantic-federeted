@@ -14,8 +14,13 @@ e mantido sem alterações — só os arquivos de `preenchimento/` foram editado
 1. Suba esta pasta inteira como projeto.
 2. Menu > Compiler > **pdfLaTeX**.
 3. Defina o *Main document* conforme a versão desejada:
-   - `main-com-identificacao.tex` → PDF **com** autores (para os anais)
-   - `main-sem-identificacao.tex` → PDF **sem** autores (avaliação cega)
+   - `sicite2026-comunicacao-semantica-federada-com-identificacao.tex`
+     → PDF **com** autores (para os anais)
+   - `sicite2026-comunicacao-semantica-federada-sem-identificacao.tex`
+     → PDF **sem** autores (avaliação cega)
+
+Os dois nomes compartilham a mesma base de propósito: um nome de arquivo que
+identificasse o autor anularia o anonimato da avaliação cega.
 
 Ambos os PDFs são obrigatórios na submissão.
 
