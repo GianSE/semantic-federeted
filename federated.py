@@ -1,6 +1,6 @@
 import copy
 import random
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -14,6 +14,38 @@ def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+
+def perturb_state_dict(
+    state_dict: Dict[str, torch.Tensor],
+    snr_db: Optional[float],
+) -> Dict[str, torch.Tensor]:
+    """Aplica ruido de canal a uma atualizacao de modelo antes da agregacao.
+
+    O FedAvg pressupoe agregacao aritmetica exata, isto e, um enlace ideal para
+    os pesos. Numa rede real as atualizacoes tambem atravessam um canal ruidoso,
+    e o erro se propaga direto para o modelo global.
+
+    Como cada tensor de parametros tem sua propria escala, a SNR e definida por
+    tensor: o desvio do ruido e proporcional ao RMS do proprio tensor, de modo
+    que `snr_db` signifique a mesma condicao de canal em toda a rede. Buffers
+    inteiros (contadores, indices) sao preservados: nao sao sinal transmitido.
+
+    `None` representa enlace ideal e nao consome numeros aleatorios, de modo que
+    o comportamento seja identico ao de antes desta funcionalidade existir.
+    """
+    if snr_db is None:
+        return state_dict
+
+    sigma_relative = 10.0 ** (-snr_db / 20.0)
+    perturbed = {}
+    for key, tensor in state_dict.items():
+        if not torch.is_floating_point(tensor):
+            perturbed[key] = tensor
+            continue
+        rms = tensor.pow(2).mean().sqrt()
+        perturbed[key] = tensor + torch.randn_like(tensor) * (sigma_relative * rms)
+    return perturbed
 
 
 def average_state_dicts(state_dicts: List[Dict[str, torch.Tensor]], weights: List[int]):
@@ -80,6 +112,7 @@ def federated_train(
     train_step_fn: Callable,
     eval_step_fn: Callable,
     device: torch.device,
+    weight_snr_db: Optional[float] = None,
     show_progress: bool = True,
 ) -> Tuple[nn.Module, List[Dict[str, float]]]:
     history = []
@@ -105,7 +138,11 @@ def federated_train(
                     client_model, loader, optimizer, train_step_fn, device, show_progress
                 )
             round_metrics.append(metrics)
-            client_states.append(client_model.state_dict())
+            # Uplink dos pesos: a atualizacao local atravessa o canal antes
+            # de chegar ao servidor para agregacao.
+            client_states.append(
+                perturb_state_dict(client_model.state_dict(), weight_snr_db)
+            )
             client_sizes.append(len(loader.dataset))
 
         avg_round_metrics = average_metrics(round_metrics)

@@ -187,12 +187,15 @@ def plot_accuracy_vs_round(history_csv: str, out_dir: str) -> None:
         for run_id, run_group in ds_group.groupby("run_id"):
             run_group = run_group.sort_values("round")
             row = run_group.iloc[0]
+            fmt = lambda v: "ideal" if pd.isna(v) else f"{v:g} dB"
             if row.get("model") == "baseline":
                 label = "baseline"
             else:
-                snr = row.get("snr_train_db")
-                snr_txt = "ideal" if pd.isna(snr) else f"{snr:g} dB"
-                label = fr"$L={int(row['latent_dim'])}$, SNR={snr_txt}"
+                label = fr"$L={int(row['latent_dim'])}$, SNR={fmt(row.get('snr_train_db'))}"
+            # Só aparece no rótulo quando a grade varia o canal de pesos,
+            # para não poluir as curvas do caso ideal.
+            if ds_group["weight_snr_db"].nunique(dropna=False) > 1:
+                label += f", $w$: {fmt(row.get('weight_snr_db'))}"
             plt.plot(run_group["round"], run_group["eval_accuracy"], marker="o", label=label)
         plt.xlabel("Rodada Federada ($t$)")
         plt.ylabel("Acurácia de Teste")

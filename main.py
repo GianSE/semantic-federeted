@@ -13,6 +13,7 @@ Perfis de uso:
 """
 
 import argparse
+from itertools import product
 from typing import Dict, List
 
 from channel import parse_snr, resolve_test_snr
@@ -57,6 +58,10 @@ def build_arg_parser():
         default=[32],
         help="Bits por dimensao latente (32 = sem quantizacao).",
     )
+    parser.add_argument(
+        "--weight-snr-db", type=parse_snr, nargs="+", default=[None],
+        help="SNRs do uplink de pesos do FedAvg, em dB. 'none' = enlace ideal.",
+    )
     parser.add_argument("--dropout-p", type=float, default=0.0)
     parser.add_argument("--num-clients", type=int, default=5)
     parser.add_argument("--rounds", type=int, default=3)
@@ -93,31 +98,34 @@ def _shared(args, dataset: str, seed: int) -> Dict:
 def build_grid(args) -> List[Dict]:
     """Enumera as configuracoes da grade, sem executar nada."""
     configs = []
-    for dataset in args.datasets:
-        for seed in args.seeds:
-            base = _shared(args, dataset, seed)
-            configs.append({**base, "model": "baseline"})
-            for latent_dim in args.latent_dims:
-                for latent_bits in args.latent_bits:
-                    for channel in args.channels:
-                        for snr_train in args.snr_train_db:
-                            for snr_test in args.snr_test_db:
-                                configs.append(
-                                    {
-                                        **base,
-                                        "model": "compressed",
-                                        "latent_dim": latent_dim,
-                                        "latent_bits": latent_bits,
-                                        "channel": channel,
-                                        "rician_k_db": (
-                                            args.rician_k_db if channel == "rician" else None
-                                        ),
-                                        "snr_train_db": snr_train,
-                                        "snr_test_db": resolve_test_snr(snr_test, snr_train),
-                                        "dropout_p": args.dropout_p,
-                                        "alpha": args.alpha,
-                                    }
-                                )
+
+    for dataset, seed, weight_snr in product(args.datasets, args.seeds, args.weight_snr_db):
+        base = {**_shared(args, dataset, seed), "weight_snr_db": weight_snr}
+        configs.append({**base, "model": "baseline"})
+
+        compressed_axes = product(
+            args.latent_dims,
+            args.latent_bits,
+            args.channels,
+            args.snr_train_db,
+            args.snr_test_db,
+        )
+        for latent_dim, latent_bits, channel, snr_train, snr_test in compressed_axes:
+            configs.append(
+                {
+                    **base,
+                    "model": "compressed",
+                    "latent_dim": latent_dim,
+                    "latent_bits": latent_bits,
+                    "channel": channel,
+                    "rician_k_db": args.rician_k_db if channel == "rician" else None,
+                    "snr_train_db": snr_train,
+                    "snr_test_db": resolve_test_snr(snr_test, snr_train),
+                    "dropout_p": args.dropout_p,
+                    "alpha": args.alpha,
+                }
+            )
+
     # A sentinela 'match' pode gerar duplicatas quando combinada com valores
     # explicitos (ex.: --snr-test-db match 10 com --snr-train-db 10).
     seen, unique = set(), []

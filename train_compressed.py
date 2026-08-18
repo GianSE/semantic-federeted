@@ -132,6 +132,7 @@ def run_compressed(config: Dict) -> Dict:
         train_step_fn=_step_fn(*train_args, training=True),
         eval_step_fn=_step_fn(*eval_args, training=False),
         device=device,
+        weight_snr_db=config.get("weight_snr_db"),
         show_progress=config.get("show_progress", True),
     )
 
@@ -195,6 +196,10 @@ def build_arg_parser():
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--weight-snr-db", type=parse_snr, default=None,
+        help="SNR do uplink de pesos do FedAvg, em dB. 'none' = enlace ideal.",
+    )
     parser.add_argument("--train-fraction", type=float, default=1.0)
     parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument("--num-workers", type=int, default=0)

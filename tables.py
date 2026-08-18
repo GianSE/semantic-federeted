@@ -11,6 +11,7 @@ COLUMNS = [
     "snr_train_db",
     "snr_test_db",
     "channel",
+    "weight_snr_db",
     "rician_k_db",
     "num_clients",
     "rounds",
