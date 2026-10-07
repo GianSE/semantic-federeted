@@ -1,9 +1,11 @@
+import os
+
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
-from data import get_federated_dataloaders
-from model_autoencoder import build_autoencoder
-import os
+
+from semantic_federated.data import get_federated_dataloaders
+from semantic_federated.models.autoencoder import build_autoencoder
 
 def generate_real_example():
     print("Carregando dados reais do CIFAR-10...")

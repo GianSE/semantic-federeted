@@ -4,13 +4,13 @@ from typing import Dict
 import torch
 from torch import nn
 
-from compression import compression_ratio, total_latent_bits, total_raw_bits
-from data import get_federated_dataloaders
-from federated import federated_train, set_seed
-from metrics import accuracy_from_logits
-from model_autoencoder import build_autoencoder
-from model_classifier import LatentClassifier
-from noise import add_gaussian_noise, apply_dropout_noise
+from semantic_federated.compression import compression_ratio, total_latent_bits, total_raw_bits
+from semantic_federated.data import get_federated_dataloaders
+from semantic_federated.federated import federated_train, set_seed
+from semantic_federated.metrics import accuracy_from_logits
+from semantic_federated.models.autoencoder import build_autoencoder
+from semantic_federated.models.classifier import LatentClassifier
+from semantic_federated.noise import add_gaussian_noise, apply_dropout_noise
 
 
 class CompressedModel(nn.Module):
@@ -78,6 +78,7 @@ def run_compressed(config: Dict) -> Dict:
         batch_size=config["batch_size"],
         test_batch_size=config["test_batch_size"],
         seed=config["seed"],
+        num_workers=config.get("num_workers", 0),
     )
 
     autoencoder = build_autoencoder(config["dataset"], latent_dim=config["latent_dim"])
@@ -153,6 +154,7 @@ def build_arg_parser():
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--num-workers", type=int, default=0)
     return parser
 
 

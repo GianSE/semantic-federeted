@@ -1,12 +1,12 @@
 import argparse
 
-from compression import latent_bits_per_sample
-from data import get_federated_dataloaders
-from plot_results import generate_plots
-from save_results import save_results
-from tables import generate_tables
-from train_baseline import run_baseline
-from train_compressed import run_compressed
+from semantic_federated.compression import latent_bits_per_sample
+from semantic_federated.data import get_federated_dataloaders
+from semantic_federated.reporting.plot_results import generate_plots
+from semantic_federated.reporting.save_results import save_results
+from semantic_federated.reporting.tables import generate_tables
+from semantic_federated.training.baseline import run_baseline
+from semantic_federated.training.compressed import run_compressed
 
 
 def estimate_compressed_total_bits(dataset: str, latent_dim: int, rounds: int, num_clients: int, seed: int) -> int:
@@ -39,6 +39,12 @@ def build_arg_parser():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--baseline-comm-mode", type=str, choices=["model", "raw"], default="raw")
     parser.add_argument("--fixed-comm-budget", type=int, default=None)
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=0,
+        help="DataLoader worker processes. Use 2+ on Colab/Linux for faster data loading; keep 0 on Windows if you hit multiprocessing issues.",
+    )
     return parser
 
 
@@ -58,6 +64,7 @@ def main():
             "lr": args.lr,
             "seed": args.seed,
             "baseline_comm_mode": "raw",
+            "num_workers": args.num_workers,
         }
         save_results([run_baseline(baseline_config)], out_dir, "experiment_results")
 
@@ -86,6 +93,7 @@ def main():
                     "lr": args.lr,
                     "alpha": args.alpha,
                     "seed": args.seed,
+                    "num_workers": args.num_workers,
                 }
                 save_results([run_compressed(compressed_config)], out_dir, "experiment_results")
 

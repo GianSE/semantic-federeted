@@ -4,11 +4,11 @@ from typing import Dict
 import torch
 from torch import nn
 
-from compression import model_update_bits_per_round, total_raw_bits
-from data import get_federated_dataloaders
-from federated import federated_train, set_seed
-from metrics import accuracy_from_logits
-from model_classifier import build_classifier
+from semantic_federated.compression import model_update_bits_per_round, total_raw_bits
+from semantic_federated.data import get_federated_dataloaders
+from semantic_federated.federated import federated_train, set_seed
+from semantic_federated.metrics import accuracy_from_logits
+from semantic_federated.models.classifier import build_classifier
 
 
 def _train_step_fn(loss_fn: nn.Module):
@@ -53,6 +53,7 @@ def run_baseline(config: Dict) -> Dict:
         batch_size=config["batch_size"],
         test_batch_size=config["test_batch_size"],
         seed=config["seed"],
+        num_workers=config.get("num_workers", 0),
     )
 
     model = build_classifier(dataset_name=config["dataset"], input_type="raw")
@@ -121,6 +122,7 @@ def build_arg_parser():
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--baseline-comm-mode", type=str, choices=["model", "raw"], default="model")
+    parser.add_argument("--num-workers", type=int, default=0)
     return parser
 
 

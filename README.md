@@ -19,25 +19,36 @@ Sem precisar instalar nada localmente — o notebook clona o repositório, monta
 ```
 semantic-federeted/
 │
-├── main.py                  # 🚀 Ponto de entrada — orquestra todos os experimentos
-├── data.py                  # 📦 Carregamento e particionamento federado dos datasets
-├── model_autoencoder.py     # 🧠 Autoencoders (Encoder + Decoder) para MNIST e CIFAR-10
-├── model_classifier.py      # 🎯 Classificadores (Raw e Latente)
-├── train_baseline.py        # 📊 Treinamento federado do baseline (sem compressão)
-├── train_compressed.py      # 🔬 Treinamento federado com compressão semântica
-├── federated.py             # 🔄 Motor de Aprendizado Federado (FedAvg)
-├── compression.py           # 📐 Cálculos de taxa de compressão e custo de comunicação
-├── noise.py                 # 📶 Injeção de ruído gaussiano (AWGN) e dropout
-├── metrics.py               # 📈 Métricas de avaliação (acurácia, médias)
-├── save_results.py          # 💾 Persistência de resultados (CSV + JSON, acumulativo)
-├── plot_results.py          # 📊 Geração de gráficos acadêmicos (estilo IEEE)
-├── tables.py                # 📋 Geração de tabelas LaTeX para o artigo
-├── gera_exemplo_real.py     # 🖼️ Gera mosaico visual (Original → Embedding → Reconstrução)
-├── requirements.txt         # 📦 Dependências Python
+├── main.py                       # 🚀 Ponto de entrada — orquestra todos os experimentos
+│
+├── semantic_federated/           # 📦 Pacote principal
+│   ├── data.py                   #   Carregamento e particionamento federado dos datasets
+│   ├── federated.py              #   Motor de Aprendizado Federado (FedAvg)
+│   ├── compression.py            #   Cálculos de taxa de compressão e custo de comunicação
+│   ├── noise.py                  #   Injeção de ruído gaussiano (AWGN) e dropout
+│   ├── metrics.py                #   Métricas de avaliação (acurácia, médias)
+│   ├── models/
+│   │   ├── autoencoder.py        #   🧠 Autoencoders (Encoder + Decoder) para MNIST e CIFAR-10
+│   │   └── classifier.py         #   🎯 Classificadores (Raw e Latente)
+│   ├── training/
+│   │   ├── baseline.py           #   📊 Treinamento federado do baseline (sem compressão)
+│   │   └── compressed.py         #   🔬 Treinamento federado com compressão semântica
+│   └── reporting/
+│       ├── save_results.py       #   💾 Persistência de resultados (CSV + JSON, acumulativo)
+│       ├── plot_results.py       #   📊 Geração de gráficos acadêmicos (estilo IEEE)
+│       └── tables.py             #   📋 Geração de tabelas LaTeX para o artigo
+│
+├── scripts/
+│   └── gera_exemplo_real.py      # 🖼️ Gera mosaico visual (Original → Embedding → Reconstrução)
+│
+├── tests/                        # 🧪 Testes unitários
+├── notebooks/
+│   └── run_experiments_colab.ipynb  # ▶️ Notebook para rodar no Google Colab (GPU)
+├── requirements.txt              # 📦 Dependências Python
 │
 ├── results/                 # Resultados gerados pelos experimentos
 │   ├── data/                #   ├── experiment_results.csv / .json
-│   ├── plots/               #   ├── Gráficos PNG (accuracy, noise, compression)
+│   ├── plots/                #   ├── Gráficos PNG (accuracy, noise, compression)
 │   └── tables/              #   └── Tabelas CSV e LaTeX
 │
 ├── data/                    # Datasets baixados automaticamente (MNIST, CIFAR-10)
@@ -166,24 +177,33 @@ python main.py --fixed-comm-budget 100000000
 
 ### 5. Scripts individuais
 
-Cada componente pode ser executado separadamente:
+Cada componente pode ser executado separadamente (sempre a partir da raiz do repositório, usando `-m` porque agora são módulos do pacote `semantic_federated`):
 
 ```bash
 # Apenas o baseline (classificador sem compressão)
-python train_baseline.py --dataset cifar10 --rounds 3
+python -m semantic_federated.training.baseline --dataset cifar10 --rounds 3
 
 # Apenas o modelo comprimido (autoencoder + classificador latente)
-python train_compressed.py --dataset cifar10 --latent-dim 64 --noise-level 0.05
+python -m semantic_federated.training.compressed --dataset cifar10 --latent-dim 64 --noise-level 0.05
 
 # Regenerar gráficos a partir dos resultados existentes
-python plot_results.py
+python -m semantic_federated.reporting.plot_results
 
 # Regenerar tabelas LaTeX
-python tables.py
+python -m semantic_federated.reporting.tables
 
 # Gerar mosaico visual (Original → Embedding → Reconstrução)
-python gera_exemplo_real.py
+python -m scripts.gera_exemplo_real
 ```
+
+### 6. Testes
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+Cobrem a aritmética de compressão/bits (`compression.py`), a agregação ponderada do FedAvg (Eq. 3 do paper, em `federated.py`), o ruído gaussiano/dropout (`noise.py`), as métricas (`metrics.py`) e o acúmulo incremental de resultados (`reporting/save_results.py`).
 
 ---
 
@@ -265,7 +285,7 @@ Isto comprova a teoria do **Information Bottleneck**: o ruído impede overfittin
 **Como verificar:**
 ```bash
 python main.py --datasets cifar10 --latent-dims 16 32 64 128 256 --noise-levels 0.0
-python plot_results.py
+python -m semantic_federated.reporting.plot_results
 # Abrir results/plots/accuracy_vs_latent_dim.png
 ```
 
@@ -288,22 +308,22 @@ python main.py --datasets cifar10 --latent-dims 16 32 64 128 --noise-levels 0.0 
 ### `main.py` — Orquestrador de Experimentos
 Coordena todo o pipeline: itera sobre datasets, dimensões latentes e níveis de ruído. Executa o baseline e todos os cenários comprimidos, salva resultados e gera gráficos/tabelas automaticamente.
 
-### `data.py` — Carregamento e Particionamento Federado
+### `semantic_federated/data.py` — Carregamento e Particionamento Federado
 Carrega MNIST ou CIFAR-10 via `torchvision` e particiona os dados de treino em `N` splits IID (distribuição homogênea) para simular clientes federados. Aplica normalização padrão por dataset.
 
-### `model_autoencoder.py` — Codificadores Semânticos
+### `semantic_federated/models/autoencoder.py` — Codificadores Semânticos
 Define dois autoencoders convolucionais:
 - **MNISTAutoencoder**: 2 blocos conv (16→32 filtros) para imagens 1×28×28
 - **CIFAR10Autoencoder**: 3 blocos conv (32→64→128 filtros) para imagens 3×32×32
 
 O encoder mapeia a entrada para um vetor latente `z ∈ ℝ^L`. O decoder espelha a estrutura com convoluções transpostas.
 
-### `model_classifier.py` — Classificadores
+### `semantic_federated/models/classifier.py` — Classificadores
 Três variantes:
 - **RawMNISTClassifier / RawCIFAR10Classifier**: Classificadores CNN para o baseline (sem compressão)
 - **LatentClassifier**: Rede densa (Linear→ReLU→Linear) que classifica diretamente a partir do vetor latente
 
-### `train_compressed.py` — Pipeline Comprimido
+### `semantic_federated/training/compressed.py` — Pipeline Comprimido
 Combina Autoencoder + LatentClassifier em um `CompressedModel` que:
 1. Codifica a imagem → vetor latente `z`
 2. Injeta ruído AWGN → `z̃ = z + N(0, σ²)`
@@ -311,34 +331,34 @@ Combina Autoencoder + LatentClassifier em um `CompressedModel` que:
 4. Reconstrói a imagem a partir de `z`
 5. Otimiza com perda multitarefa: `L = L_CE + α·L_MSE`
 
-### `train_baseline.py` — Pipeline Baseline
+### `semantic_federated/training/baseline.py` — Pipeline Baseline
 Treina um classificador CNN padrão via FedAvg **sem compressão**. Serve como linha de base para comparação de acurácia e custo de comunicação.
 
-### `federated.py` — Motor FedAvg
+### `semantic_federated/federated.py` — Motor FedAvg
 Implementa o algoritmo Federated Averaging:
 1. Cada cliente recebe o modelo global
 2. Treina localmente por `E` épocas
 3. Envia os pesos atualizados ao servidor
 4. O servidor calcula a média ponderada: `w_{t+1} = Σ(n_k/n)·w_t^k`
 
-### `compression.py` — Métricas de Comunicação
+### `semantic_federated/compression.py` — Métricas de Comunicação
 Calcula o custo em bits para cada cenário:
 - **Raw**: `pixels × canais × 32 bits` por amostra
 - **Latente**: `L × 32 bits` por amostra
 - **Razão de compressão**: `bits_raw / bits_latente`
 
-### `noise.py` — Simulação de Canal
+### `semantic_federated/noise.py` — Simulação de Canal
 Simula imperfeições do canal sem fio:
 - **Ruído Gaussiano (AWGN)**: `z̃ = z + N(0, σ²)` — modela interferência de canal
 - **Dropout**: Zera aleatoriamente dimensões do vetor latente
 
-### `plot_results.py` — Visualização Acadêmica
+### `semantic_federated/reporting/plot_results.py` — Visualização Acadêmica
 Gera 4 gráficos em estilo IEEE (fonte serif, DPI 300) a partir do CSV de resultados.
 
-### `tables.py` — Tabelas para o Artigo
+### `semantic_federated/reporting/tables.py` — Tabelas para o Artigo
 Exporta os resultados como tabela LaTeX formatada, pronta para inclusão no `main.tex`.
 
-### `gera_exemplo_real.py` — Mosaico Visual
+### `scripts/gera_exemplo_real.py` — Mosaico Visual
 Gera uma figura demonstrativa com 3 painéis:
 1. Imagem original do CIFAR-10
 2. Vetor de embedding (gráfico de barras)

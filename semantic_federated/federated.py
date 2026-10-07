@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from tqdm import tqdm
 
-from metrics import average_metrics
+from semantic_federated.metrics import average_metrics
 
 
 def set_seed(seed: int) -> None:

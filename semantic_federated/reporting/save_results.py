@@ -11,16 +11,10 @@ def save_results(records: List[Dict], out_dir: str, base_name: str) -> None:
     json_path = os.path.join(out_dir, f"{base_name}.json")
     
     df = pd.DataFrame(records)
-    
-    # Accumulate in CSV handling new headers
-    if os.path.isfile(csv_path):
-        try:
-            old_df = pd.read_csv(csv_path)
-            df = pd.concat([old_df, df], ignore_index=True)
-        except pd.errors.EmptyDataError:
-            pass
-            
-    df.to_csv(csv_path, index=False)
+
+    # Append directly instead of reading the whole CSV back on every call.
+    csv_has_header = os.path.isfile(csv_path) and os.path.getsize(csv_path) > 0
+    df.to_csv(csv_path, mode="a", header=not csv_has_header, index=False)
     
     # Accumulate in JSON
     all_records = []
