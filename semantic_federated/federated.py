@@ -35,14 +35,12 @@ def train_local(
     optimizer: torch.optim.Optimizer,
     train_step_fn: Callable,
     device: torch.device,
-    show_progress: bool,
 ) -> Dict[str, float]:
     model.train()
     batch_metrics = []
-    batch_iter = loader
-    if show_progress:
-        batch_iter = tqdm(loader, desc="Batches", leave=False)
-    for batch in batch_iter:
+    # Sem barra por batch: com ~150 batches por cliente e milhares de execucoes no
+    # grid completo, uma barra nesse nivel so gera log excessivo sem informacao util.
+    for batch in loader:
         optimizer.zero_grad()
         loss, metrics = train_step_fn(model, batch, device)
         loss.backward()
@@ -91,17 +89,13 @@ def federated_train(
         client_sizes = []
         round_metrics = []
 
-        client_iter = enumerate(client_loaders)
-        if show_progress:
-            client_iter = tqdm(client_iter, total=len(client_loaders), desc="Clients", leave=False)
-
-        for client_id, loader in client_iter:
+        # Sem barra por cliente: cada um treina em poucos segundos, e aninhar outra
+        # barra aqui so duplicaria o ruido de log sem agregar informacao.
+        for client_id, loader in enumerate(client_loaders):
             client_model = copy.deepcopy(global_model)
             optimizer = optimizer_fn(client_model.parameters())
             for _ in range(local_epochs):
-                metrics = train_local(
-                    client_model, loader, optimizer, train_step_fn, device, show_progress
-                )
+                metrics = train_local(client_model, loader, optimizer, train_step_fn, device)
             round_metrics.append(metrics)
             client_states.append(client_model.state_dict())
             client_sizes.append(len(loader.dataset))

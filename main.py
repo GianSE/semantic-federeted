@@ -65,8 +65,18 @@ def main():
 
     out_dir = "./results/data"
 
+    # Contagem aproximada (ignora os possiveis "pulos" do --fixed-comm-budget) so para
+    # o usuario acompanhar o progresso geral do grid -- cada run individual ja tem sua
+    # propria barra "Federated Rounds".
+    total_runs = len(args.datasets) * len(args.seeds) + len(args.datasets) * len(
+        args.latent_dims
+    ) * len(args.noise_levels) * len(args.seeds)
+    run_idx = 0
+
     for dataset in args.datasets:
         for seed in args.seeds:
+            run_idx += 1
+            print(f"\n=== [{run_idx}/{total_runs}] baseline | dataset={dataset} seed={seed} ===", flush=True)
             baseline_config = {
                 "dataset": dataset,
                 "num_clients": args.num_clients,
@@ -93,9 +103,17 @@ def main():
                     seed=args.seeds[0],
                 )
                 if estimated_bits > args.fixed_comm_budget:
+                    run_idx += len(args.noise_levels) * len(args.seeds)
                     continue
             for noise_level in args.noise_levels:
                 for seed in args.seeds:
+                    run_idx += 1
+                    print(
+                        f"\n=== [{run_idx}/{total_runs}] dataset={dataset} L={latent_dim} "
+                        f"noise={noise_level} channel={args.channel_type} partition={args.partition} "
+                        f"seed={seed} ===",
+                        flush=True,
+                    )
                     compressed_config = {
                         "dataset": dataset,
                         "latent_dim": latent_dim,
