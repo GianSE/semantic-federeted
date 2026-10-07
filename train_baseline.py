@@ -45,7 +45,7 @@ def _eval_step_fn(loss_fn: nn.Module):
 
 def run_baseline(config: Dict) -> Dict:
     set_seed(config["seed"])
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     client_loaders, test_loader = get_federated_dataloaders(
         dataset_name=config["dataset"],

@@ -1,6 +1,4 @@
 import argparse
-import os
-from typing import Dict, List
 
 from compression import latent_bits_per_sample
 from data import get_federated_dataloaders
@@ -47,7 +45,7 @@ def build_arg_parser():
 def main():
     args = build_arg_parser().parse_args()
 
-    results: List[Dict] = []
+    out_dir = "./results/data"
 
     for dataset in args.datasets:
         baseline_config = {
@@ -61,7 +59,7 @@ def main():
             "seed": args.seed,
             "baseline_comm_mode": "raw",
         }
-        results.append(run_baseline(baseline_config))
+        save_results([run_baseline(baseline_config)], out_dir, "experiment_results")
 
         for latent_dim in args.latent_dims:
             if args.fixed_comm_budget is not None:
@@ -89,10 +87,7 @@ def main():
                     "alpha": args.alpha,
                     "seed": args.seed,
                 }
-                results.append(run_compressed(compressed_config))
-
-    out_dir = "./results/data"
-    save_results(results, out_dir, "experiment_results")
+                save_results([run_compressed(compressed_config)], out_dir, "experiment_results")
 
     generate_plots("./results/data/experiment_results.csv", "./results/plots")
     generate_tables("./results/data/experiment_results.csv", "./results/tables")

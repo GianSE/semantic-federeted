@@ -70,7 +70,7 @@ def _eval_step_fn(loss_fn: nn.Module, recon_loss_fn: nn.Module, alpha: float, no
 
 def run_compressed(config: Dict) -> Dict:
     set_seed(config["seed"])
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     client_loaders, test_loader = get_federated_dataloaders(
         dataset_name=config["dataset"],

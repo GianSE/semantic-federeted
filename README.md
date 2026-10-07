@@ -6,6 +6,12 @@ Este repositório contém a implementação completa do testbed experimental des
 
 O projeto demonstra que **autoencoders convolucionais leves**, combinados com **Aprendizado Federado (FedAvg)**, conseguem comprimir a informação semântica de imagens em até **192x** (economia de 99,48% de banda) mantendo acurácia de classificação competitiva — provando que a maioria dos bits em transmissões convencionais é redundância sem valor semântico.
 
+## 🚀 Rodar no Google Colab
+
+Sem precisar instalar nada localmente — o notebook clona o repositório, monta o Google Drive para persistir dados e resultados, e já usa GPU automaticamente quando disponível.
+
+[![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GianSE/semantic-federeted/blob/main/notebooks/run_experiments_colab.ipynb)
+
 ---
 
 ## 📂 Estrutura do Projeto
