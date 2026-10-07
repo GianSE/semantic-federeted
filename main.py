@@ -118,9 +118,9 @@ def main():
                     }
                     save_results([run_compressed(compressed_config)], out_dir, "experiment_results")
 
-    generate_plots("./results/data/experiment_results.csv", "./results/plots")
-    generate_tables("./results/data/experiment_results.csv", "./results/tables")
     aggregate_over_seeds("./results/data/experiment_results.csv", "./results/tables")
+    generate_plots("./results/tables/results_summary.csv", "./results/plots")
+    generate_tables("./results/data/experiment_results.csv", "./results/tables")
 
 
 if __name__ == "__main__":

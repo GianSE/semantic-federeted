@@ -198,10 +198,13 @@ python -m semantic_federated.training.baseline --dataset cifar10 --rounds 3
 # Apenas o modelo comprimido (autoencoder + classificador latente)
 python -m semantic_federated.training.compressed --dataset cifar10 --latent-dim 64 --noise-level 0.05
 
-# Regenerar gráficos a partir dos resultados existentes
+# Regenerar agregação multi-seed (necessário antes dos gráficos, gera results_summary.csv)
+python -m semantic_federated.reporting.aggregate
+
+# Regenerar gráficos a partir do results_summary.csv
 python -m semantic_federated.reporting.plot_results
 
-# Regenerar tabelas LaTeX
+# Regenerar tabelas LaTeX (a partir do CSV bruto, uma linha por execução)
 python -m semantic_federated.reporting.tables
 
 # Gerar mosaico visual (Original → Embedding → Reconstrução)
@@ -215,7 +218,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-Cobrem a aritmética de compressão/bits (`compression.py`), a agregação ponderada do FedAvg (Eq. 3 do paper, em `federated.py`), o ruído gaussiano/dropout (`noise.py`), as métricas (`metrics.py`) e o acúmulo incremental de resultados (`reporting/save_results.py`).
+Cobrem a aritmética de compressão/bits (`compression.py`), a agregação ponderada do FedAvg (Eq. 3 do paper, em `federated.py`), o ruído gaussiano/dropout e os canais com desvanecimento (`noise.py`), as métricas (`metrics.py`), o particionamento Dirichlet (`data.py`), a agregação multi-seed (`reporting/aggregate.py`), a geração de gráficos (`reporting/plot_results.py`) e o acúmulo incremental de resultados (`reporting/save_results.py`).
 
 ---
 
@@ -228,12 +231,16 @@ Após a execução, o diretório `results/` conterá:
 - **`experiment_results.json`** — Mesmos dados em formato JSON
 
 ### `results/plots/`
+Todos os gráficos usam o `results_summary.csv` (média ± desvio padrão entre seeds) e uma paleta categórica fixa, validada contra daltonismo (ver `dataviz` skill): a condição padrão (`iid`, `awgn`) é sempre azul; alternativas (`dirichlet`, `rayleigh`, `rician`) têm cor fixa própria em qualquer gráfico onde apareçam.
+
 | Arquivo                              | Descrição                                           |
 |--------------------------------------|-----------------------------------------------------|
-| `accuracy_vs_compression_ratio.png`  | Trade-off entre compressão e acurácia               |
-| `accuracy_vs_latent_dim.png`         | Acurácia em função da dimensão latente              |
-| `accuracy_vs_noise_level.png`        | Impacto do ruído na acurácia (por L)                |
+| `accuracy_vs_compression_ratio.png`  | Trade-off entre compressão e acurácia, com barra de erro e linha de referência do baseline |
+| `accuracy_vs_latent_dim.png`         | Acurácia em função da dimensão latente, com ajuste logarítmico ($R^2$ anotado) |
+| `accuracy_vs_noise_level.png`        | Impacto do ruído na acurácia, por dimensão latente (barras de erro) |
 | `communication_cost_vs_latent_dim.png` | Custo de comunicação vs dimensão latente          |
+| `accuracy_iid_vs_dirichlet.png`      | **Novo.** IID vs. não-IID (Dirichlet) — só gerado se você rodou `--partition dirichlet` |
+| `accuracy_by_channel_type.png`       | **Novo.** AWGN vs. Rayleigh vs. Rician — só gerado se você rodou `--channel-type rayleigh`/`rician` |
 
 ### `results/tables/`
 - **`results_table.csv`** — Tabela formatada em CSV
@@ -298,8 +305,10 @@ Isto comprova a teoria do **Information Bottleneck**: o ruído impede overfittin
 **Como verificar:**
 ```bash
 python main.py --datasets cifar10 --latent-dims 16 32 64 128 256 --noise-levels 0.0
+# main.py já gera os gráficos ao final; para regenerar sem rodar tudo de novo:
+python -m semantic_federated.reporting.aggregate
 python -m semantic_federated.reporting.plot_results
-# Abrir results/plots/accuracy_vs_latent_dim.png
+# Abrir results/plots/accuracy_vs_latent_dim.png (inclui ajuste logarítmico com R²)
 ```
 
 ### Validação Cruzada Completa
@@ -372,7 +381,7 @@ Simula imperfeições do canal sem fio, selecionáveis via `--channel-type`:
 - **Dropout**: Zera aleatoriamente dimensões do vetor latente (independente do modelo de canal)
 
 ### `semantic_federated/reporting/plot_results.py` — Visualização Acadêmica
-Gera 4 gráficos em estilo IEEE (fonte serif, DPI 300) a partir do CSV de resultados.
+Gera até 6 gráficos em estilo IEEE (fonte serif, DPI 300) a partir do `results_summary.csv` agregado, com barras de erro entre seeds, ajuste logarítmico (com $R^2$) na curva de acurácia vs. dimensão latente, e comparações IID vs. não-IID / tipos de canal quando os dados existirem.
 
 ### `semantic_federated/reporting/tables.py` — Tabelas para o Artigo
 Exporta os resultados como tabela LaTeX formatada, pronta para inclusão no `main.tex`.
