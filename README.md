@@ -155,7 +155,9 @@ Este comando executa **todos** os experimentos com os hiperparâmetros padrão d
 | Learning Rate         | `0.001`                   |
 | Batch Size            | `64`                      |
 | Alpha (α)             | `0.5`                     |
-| Seed                  | `42`                      |
+| Seeds                 | `42`                      |
+| Partição              | `iid`                     |
+| Canal                 | `awgn`                    |
 
 ### 4. Personalizar experimentos
 
@@ -173,6 +175,16 @@ python main.py --datasets cifar10 --latent-dims 64 --noise-levels 0.0 0.01 0.05 
 
 # Definir um orçamento fixo de comunicação (em bits)
 python main.py --fixed-comm-budget 100000000
+
+# Múltiplas seeds (recomendado para o paper: reporta média +/- desvio padrão em results_summary.csv)
+python main.py --datasets cifar10 --latent-dims 64 --noise-levels 0.0 0.05 --seeds 1 2 3 4 5
+
+# Partição não-IID via Dirichlet (alpha baixo = mais heterogêneo entre clientes)
+python main.py --datasets cifar10 --partition dirichlet --dirichlet-alpha 0.1
+
+# Canal com desvanecimento (além do AWGN padrão)
+python main.py --datasets cifar10 --channel-type rayleigh --fading-scale 1.0
+python main.py --datasets cifar10 --channel-type rician --fading-scale 1.0 --rician-k 5.0
 ```
 
 ### 5. Scripts individuais
@@ -226,6 +238,7 @@ Após a execução, o diretório `results/` conterá:
 ### `results/tables/`
 - **`results_table.csv`** — Tabela formatada em CSV
 - **`results_table.tex`** — Tabela formatada em LaTeX (pronta para o artigo)
+- **`results_summary.csv`** — Agregação por configuração (dataset, latent_dim, noise_level, channel_type, partition) com média, desvio padrão e contagem de seeds para cada métrica. Use esta tabela quando rodar `--seeds` com múltiplos valores — é o que permite reportar "acurácia X ± Y" em vez de um único número de uma seed só.
 
 > **Nota:** Os resultados são **acumulativos**. Cada nova execução do `main.py` **adiciona** os novos dados aos arquivos existentes, permitindo rodar diferentes configurações iterativamente.
 
@@ -298,7 +311,7 @@ del results\data\experiment_results.csv
 del results\data\experiment_results.json
 
 # Execução completa
-python main.py --datasets cifar10 --latent-dims 16 32 64 128 --noise-levels 0.0 0.01 0.05 0.1 --rounds 3 --seed 42
+python main.py --datasets cifar10 --latent-dims 16 32 64 128 --noise-levels 0.0 0.01 0.05 0.1 --rounds 3 --seeds 42
 ```
 
 ---
@@ -309,7 +322,11 @@ python main.py --datasets cifar10 --latent-dims 16 32 64 128 --noise-levels 0.0 
 Coordena todo o pipeline: itera sobre datasets, dimensões latentes e níveis de ruído. Executa o baseline e todos os cenários comprimidos, salva resultados e gera gráficos/tabelas automaticamente.
 
 ### `semantic_federated/data.py` — Carregamento e Particionamento Federado
-Carrega MNIST ou CIFAR-10 via `torchvision` e particiona os dados de treino em `N` splits IID (distribuição homogênea) para simular clientes federados. Aplica normalização padrão por dataset.
+Carrega MNIST ou CIFAR-10 via `torchvision` e particiona os dados de treino em `N` clientes. Duas estratégias de particionamento:
+- **`iid`** (padrão): split aleatório homogêneo (`split_clients`).
+- **`dirichlet`**: não-IID por rótulo via distribuição de Dirichlet (`split_clients_dirichlet`) — `--dirichlet-alpha` baixo (ex. 0.1) concentra cada classe em poucos clientes; alto (ex. 100) se aproxima do IID.
+
+Aplica normalização padrão por dataset.
 
 ### `semantic_federated/models/autoencoder.py` — Codificadores Semânticos
 Define dois autoencoders convolucionais:
@@ -348,15 +365,20 @@ Calcula o custo em bits para cada cenário:
 - **Razão de compressão**: `bits_raw / bits_latente`
 
 ### `semantic_federated/noise.py` — Simulação de Canal
-Simula imperfeições do canal sem fio:
-- **Ruído Gaussiano (AWGN)**: `z̃ = z + N(0, σ²)` — modela interferência de canal
-- **Dropout**: Zera aleatoriamente dimensões do vetor latente
+Simula imperfeições do canal sem fio, selecionáveis via `--channel-type`:
+- **`awgn`** (padrão): `z̃ = z + N(0, σ²)` — ruído aditivo gaussiano puro
+- **`rayleigh`**: `z̃ = h·z + N(0, σ²)`, com `h` seguindo distribuição Rayleigh (desvanecimento sem linha de visada) — controlado por `--fading-scale`
+- **`rician`**: como o Rayleigh, mas com componente de linha de visada (`--rician-k`); `k` alto → canal quase determinístico, `k` próximo de 0 → se aproxima do Rayleigh puro
+- **Dropout**: Zera aleatoriamente dimensões do vetor latente (independente do modelo de canal)
 
 ### `semantic_federated/reporting/plot_results.py` — Visualização Acadêmica
 Gera 4 gráficos em estilo IEEE (fonte serif, DPI 300) a partir do CSV de resultados.
 
 ### `semantic_federated/reporting/tables.py` — Tabelas para o Artigo
 Exporta os resultados como tabela LaTeX formatada, pronta para inclusão no `main.tex`.
+
+### `semantic_federated/reporting/aggregate.py` — Agregação Multi-Seed
+Agrupa por configuração (dataset, latent_dim, noise_level, channel_type, partition) e calcula média, desvio padrão e contagem de seeds por métrica, salvando em `results/tables/results_summary.csv`.
 
 ### `scripts/gera_exemplo_real.py` — Mosaico Visual
 Gera uma figura demonstrativa com 3 painéis:

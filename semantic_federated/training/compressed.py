@@ -10,7 +10,7 @@ from semantic_federated.federated import federated_train, set_seed
 from semantic_federated.metrics import accuracy_from_logits
 from semantic_federated.models.autoencoder import build_autoencoder
 from semantic_federated.models.classifier import LatentClassifier
-from semantic_federated.noise import add_gaussian_noise, apply_dropout_noise
+from semantic_federated.noise import apply_channel, apply_dropout_noise
 
 
 class CompressedModel(nn.Module):
@@ -19,21 +19,21 @@ class CompressedModel(nn.Module):
         self.autoencoder = autoencoder
         self.classifier = classifier
 
-    def forward(self, x, noise_sigma: float, dropout_p: float, training: bool):
+    def forward(self, x, channel_kwargs: dict, dropout_p: float, training: bool):
         z = self.autoencoder.encode(x)
-        z_noisy = add_gaussian_noise(z, noise_sigma)
+        z_noisy = apply_channel(z, **channel_kwargs)
         z_noisy = apply_dropout_noise(z_noisy, dropout_p, training=training)
         logits = self.classifier(z_noisy)
         recon = self.autoencoder.decode(z)
         return z, z_noisy, logits, recon
 
 
-def _train_step_fn(loss_fn: nn.Module, recon_loss_fn: nn.Module, alpha: float, noise_sigma: float, dropout_p: float):
+def _train_step_fn(loss_fn: nn.Module, recon_loss_fn: nn.Module, alpha: float, channel_kwargs: dict, dropout_p: float):
     def step(model, batch, device):
         inputs, targets = batch
         inputs = inputs.to(device)
         targets = targets.to(device)
-        _, _, logits, recon = model(inputs, noise_sigma, dropout_p, training=True)
+        _, _, logits, recon = model(inputs, channel_kwargs, dropout_p, training=True)
         classification_loss = loss_fn(logits, targets)
         reconstruction_loss = recon_loss_fn(recon, inputs)
         loss = classification_loss + alpha * reconstruction_loss
@@ -48,12 +48,12 @@ def _train_step_fn(loss_fn: nn.Module, recon_loss_fn: nn.Module, alpha: float, n
     return step
 
 
-def _eval_step_fn(loss_fn: nn.Module, recon_loss_fn: nn.Module, alpha: float, noise_sigma: float, dropout_p: float):
+def _eval_step_fn(loss_fn: nn.Module, recon_loss_fn: nn.Module, alpha: float, channel_kwargs: dict, dropout_p: float):
     def step(model, batch, device):
         inputs, targets = batch
         inputs = inputs.to(device)
         targets = targets.to(device)
-        _, _, logits, recon = model(inputs, noise_sigma, dropout_p, training=False)
+        _, _, logits, recon = model(inputs, channel_kwargs, dropout_p, training=False)
         classification_loss = loss_fn(logits, targets)
         reconstruction_loss = recon_loss_fn(recon, inputs)
         loss = classification_loss + alpha * reconstruction_loss
@@ -79,7 +79,16 @@ def run_compressed(config: Dict) -> Dict:
         test_batch_size=config["test_batch_size"],
         seed=config["seed"],
         num_workers=config.get("num_workers", 0),
+        partition=config.get("partition", "iid"),
+        dirichlet_alpha=config.get("dirichlet_alpha", 0.5),
     )
+
+    channel_kwargs = {
+        "channel_type": config.get("channel_type", "awgn"),
+        "noise_sigma": config["noise_level"],
+        "fading_scale": config.get("fading_scale", 1.0),
+        "rician_k": config.get("rician_k", 1.0),
+    }
 
     autoencoder = build_autoencoder(config["dataset"], latent_dim=config["latent_dim"])
     classifier = LatentClassifier(latent_dim=config["latent_dim"])
@@ -105,14 +114,14 @@ def run_compressed(config: Dict) -> Dict:
             loss_fn,
             recon_loss_fn,
             config["alpha"],
-            config["noise_level"],
+            channel_kwargs,
             config["dropout_p"],
         ),
         eval_step_fn=_eval_step_fn(
             loss_fn,
             recon_loss_fn,
             config["alpha"],
-            config["noise_level"],
+            channel_kwargs,
             config["dropout_p"],
         ),
         comm_cost_fn=comm_cost_fn,
@@ -129,6 +138,9 @@ def run_compressed(config: Dict) -> Dict:
         "dataset": config["dataset"],
         "latent_dim": config["latent_dim"],
         "noise_level": config["noise_level"],
+        "channel_type": config.get("channel_type", "awgn"),
+        "partition": config.get("partition", "iid"),
+        "seed": config["seed"],
         "baseline_comm_mode": None,
         "accuracy_baseline": None,
         "accuracy_compressed": final_eval["eval_accuracy"],
@@ -155,6 +167,11 @@ def build_arg_parser():
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--partition", type=str, choices=["iid", "dirichlet"], default="iid")
+    parser.add_argument("--dirichlet-alpha", type=float, default=0.5)
+    parser.add_argument("--channel-type", type=str, choices=["awgn", "rayleigh", "rician"], default="awgn")
+    parser.add_argument("--fading-scale", type=float, default=1.0)
+    parser.add_argument("--rician-k", type=float, default=1.0)
     return parser
 
 

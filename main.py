@@ -2,6 +2,7 @@ import argparse
 
 from semantic_federated.compression import latent_bits_per_sample
 from semantic_federated.data import get_federated_dataloaders
+from semantic_federated.reporting.aggregate import aggregate_over_seeds
 from semantic_federated.reporting.plot_results import generate_plots
 from semantic_federated.reporting.save_results import save_results
 from semantic_federated.reporting.tables import generate_tables
@@ -36,7 +37,13 @@ def build_arg_parser():
     parser.add_argument("--test-batch-size", type=int, default=256)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--alpha", type=float, default=0.5)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--seeds",
+        type=int,
+        nargs="+",
+        default=[42],
+        help="Uma ou mais seeds. Cada configuracao e repetida para cada seed, permitindo reportar media +/- desvio padrao.",
+    )
     parser.add_argument("--baseline-comm-mode", type=str, choices=["model", "raw"], default="raw")
     parser.add_argument("--fixed-comm-budget", type=int, default=None)
     parser.add_argument(
@@ -45,6 +52,11 @@ def build_arg_parser():
         default=0,
         help="DataLoader worker processes. Use 2+ on Colab/Linux for faster data loading; keep 0 on Windows if you hit multiprocessing issues.",
     )
+    parser.add_argument("--partition", type=str, choices=["iid", "dirichlet"], default="iid")
+    parser.add_argument("--dirichlet-alpha", type=float, default=0.5)
+    parser.add_argument("--channel-type", type=str, choices=["awgn", "rayleigh", "rician"], default="awgn")
+    parser.add_argument("--fading-scale", type=float, default=1.0)
+    parser.add_argument("--rician-k", type=float, default=1.0)
     return parser
 
 
@@ -54,19 +66,22 @@ def main():
     out_dir = "./results/data"
 
     for dataset in args.datasets:
-        baseline_config = {
-            "dataset": dataset,
-            "num_clients": args.num_clients,
-            "rounds": args.rounds,
-            "local_epochs": args.local_epochs,
-            "batch_size": args.batch_size,
-            "test_batch_size": args.test_batch_size,
-            "lr": args.lr,
-            "seed": args.seed,
-            "baseline_comm_mode": "raw",
-            "num_workers": args.num_workers,
-        }
-        save_results([run_baseline(baseline_config)], out_dir, "experiment_results")
+        for seed in args.seeds:
+            baseline_config = {
+                "dataset": dataset,
+                "num_clients": args.num_clients,
+                "rounds": args.rounds,
+                "local_epochs": args.local_epochs,
+                "batch_size": args.batch_size,
+                "test_batch_size": args.test_batch_size,
+                "lr": args.lr,
+                "seed": seed,
+                "baseline_comm_mode": "raw",
+                "num_workers": args.num_workers,
+                "partition": args.partition,
+                "dirichlet_alpha": args.dirichlet_alpha,
+            }
+            save_results([run_baseline(baseline_config)], out_dir, "experiment_results")
 
         for latent_dim in args.latent_dims:
             if args.fixed_comm_budget is not None:
@@ -75,30 +90,37 @@ def main():
                     latent_dim=latent_dim,
                     rounds=args.rounds,
                     num_clients=args.num_clients,
-                    seed=args.seed,
+                    seed=args.seeds[0],
                 )
                 if estimated_bits > args.fixed_comm_budget:
                     continue
             for noise_level in args.noise_levels:
-                compressed_config = {
-                    "dataset": dataset,
-                    "latent_dim": latent_dim,
-                    "noise_level": noise_level,
-                    "dropout_p": 0.0,
-                    "num_clients": args.num_clients,
-                    "rounds": args.rounds,
-                    "local_epochs": args.local_epochs,
-                    "batch_size": args.batch_size,
-                    "test_batch_size": args.test_batch_size,
-                    "lr": args.lr,
-                    "alpha": args.alpha,
-                    "seed": args.seed,
-                    "num_workers": args.num_workers,
-                }
-                save_results([run_compressed(compressed_config)], out_dir, "experiment_results")
+                for seed in args.seeds:
+                    compressed_config = {
+                        "dataset": dataset,
+                        "latent_dim": latent_dim,
+                        "noise_level": noise_level,
+                        "dropout_p": 0.0,
+                        "num_clients": args.num_clients,
+                        "rounds": args.rounds,
+                        "local_epochs": args.local_epochs,
+                        "batch_size": args.batch_size,
+                        "test_batch_size": args.test_batch_size,
+                        "lr": args.lr,
+                        "alpha": args.alpha,
+                        "seed": seed,
+                        "num_workers": args.num_workers,
+                        "partition": args.partition,
+                        "dirichlet_alpha": args.dirichlet_alpha,
+                        "channel_type": args.channel_type,
+                        "fading_scale": args.fading_scale,
+                        "rician_k": args.rician_k,
+                    }
+                    save_results([run_compressed(compressed_config)], out_dir, "experiment_results")
 
     generate_plots("./results/data/experiment_results.csv", "./results/plots")
     generate_tables("./results/data/experiment_results.csv", "./results/tables")
+    aggregate_over_seeds("./results/data/experiment_results.csv", "./results/tables")
 
 
 if __name__ == "__main__":

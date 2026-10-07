@@ -54,6 +54,8 @@ def run_baseline(config: Dict) -> Dict:
         test_batch_size=config["test_batch_size"],
         seed=config["seed"],
         num_workers=config.get("num_workers", 0),
+        partition=config.get("partition", "iid"),
+        dirichlet_alpha=config.get("dirichlet_alpha", 0.5),
     )
 
     model = build_classifier(dataset_name=config["dataset"], input_type="raw")
@@ -100,6 +102,9 @@ def run_baseline(config: Dict) -> Dict:
         "dataset": config["dataset"],
         "latent_dim": None,
         "noise_level": 0.0,
+        "channel_type": None,
+        "partition": config.get("partition", "iid"),
+        "seed": config["seed"],
         "baseline_comm_mode": config["baseline_comm_mode"],
         "accuracy_baseline": final_eval["eval_accuracy"],
         "accuracy_compressed": None,
@@ -123,6 +128,8 @@ def build_arg_parser():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--baseline-comm-mode", type=str, choices=["model", "raw"], default="model")
     parser.add_argument("--num-workers", type=int, default=0)
+    parser.add_argument("--partition", type=str, choices=["iid", "dirichlet"], default="iid")
+    parser.add_argument("--dirichlet-alpha", type=float, default=0.5)
     return parser
 
 
