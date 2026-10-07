@@ -18,6 +18,10 @@ Para reproduzir a mesma configuração de experimento do artigo submetido/aceito
 
 [![Abrir no Colab (legado)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GianSE/semantic-federeted/blob/main/notebooks/run_experiments_colab_legacy.ipynb)
 
+### Melhorias futuras já prontas numa branch separada
+
+A branch `origin/melhorias-sbrt2026` implementa, sem estar mesclada ainda, a seção de "Limitações e Trabalhos Futuros" do paper (SNR em dB, quantização do latente, canal com desvanecimento e equalização CSI, ruído nos pesos do FedAvg, non-IID mais robusto, bibliografia). Ver [`melhorias-futuras.md`](melhorias-futuras.md) para o detalhamento completo e o plano de mesclagem.
+
 ---
 
 ## 📂 Estrutura do Projeto
