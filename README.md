@@ -12,6 +12,12 @@ Sem precisar instalar nada localmente — o notebook clona o repositório, monta
 
 [![Abrir no Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GianSE/semantic-federeted/blob/main/notebooks/run_experiments_colab.ipynb)
 
+### Reprodução dos resultados legados (paper submetido)
+
+Para reproduzir a mesma configuração de experimento do artigo submetido/aceito na SBrT 2026 — seed única (42), sem non-IID, sem canais com desvanecimento — mas já se beneficiando de GPU e salvamento incremental do pipeline atual, use este notebook. Ele roda o código atual (não uma versão antiga fixada), só restringindo o escopo do experimento para bater com o que foi reportado no paper.
+
+[![Abrir no Colab (legado)](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/GianSE/semantic-federeted/blob/main/notebooks/run_experiments_colab_legacy.ipynb)
+
 ---
 
 ## 📂 Estrutura do Projeto
