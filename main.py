@@ -57,6 +57,13 @@ def build_arg_parser():
     parser.add_argument("--channel-type", type=str, choices=["awgn", "rayleigh", "rician"], default="awgn")
     parser.add_argument("--fading-scale", type=float, default=1.0)
     parser.add_argument("--rician-k", type=float, default=1.0)
+    parser.add_argument(
+        "--save-checkpoint",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Salva os pesos treinados de cada config comprimida em --checkpoint-dir.",
+    )
+    parser.add_argument("--checkpoint-dir", type=str, default="./results/checkpoints")
     return parser
 
 
@@ -133,6 +140,8 @@ def main():
                         "channel_type": args.channel_type,
                         "fading_scale": args.fading_scale,
                         "rician_k": args.rician_k,
+                        "save_checkpoint": args.save_checkpoint,
+                        "checkpoint_dir": args.checkpoint_dir,
                     }
                     save_results([run_compressed(compressed_config)], out_dir, "experiment_results")
 

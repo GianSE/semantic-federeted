@@ -45,11 +45,12 @@ semantic-federeted/
 │   │   └── compressed.py         #   🔬 Treinamento federado com compressão semântica
 │   └── reporting/
 │       ├── save_results.py       #   💾 Persistência de resultados (CSV + JSON, acumulativo)
+│       ├── checkpoints.py        #   💽 Salva/carrega os pesos treinados (Encoder+Classif.+Decoder)
 │       ├── plot_results.py       #   📊 Geração de gráficos acadêmicos (estilo IEEE)
 │       └── tables.py             #   📋 Geração de tabelas LaTeX para o artigo
 │
 ├── scripts/
-│   └── gera_exemplo_real.py      # 🖼️ Gera mosaico visual (Original → Embedding → Reconstrução)
+│   └── gera_exemplo_real.py      # 🖼️ Original vs. latente vs. reconstrução a partir de um checkpoint real
 │
 ├── tests/                        # 🧪 Testes unitários
 ├── notebooks/
@@ -58,7 +59,8 @@ semantic-federeted/
 │
 ├── results/                 # Resultados gerados pelos experimentos
 │   ├── data/                #   ├── experiment_results.csv / .json
-│   ├── plots/                #   ├── Gráficos PNG (accuracy, noise, compression)
+│   ├── checkpoints/          #   ├── Pesos treinados (.pt), um por config comprimida
+│   ├── plots/                #   ├── Gráficos PNG (accuracy, noise, compression, reconstrução)
 │   └── tables/              #   └── Tabelas CSV e LaTeX
 │
 ├── data/                    # Datasets baixados automaticamente (MNIST, CIFAR-10)
@@ -217,8 +219,9 @@ python -m semantic_federated.reporting.plot_results
 # Regenerar tabelas LaTeX (a partir do CSV bruto, uma linha por execução)
 python -m semantic_federated.reporting.tables
 
-# Gerar mosaico visual (Original → Embedding → Reconstrução)
-python -m scripts.gera_exemplo_real
+# Original vs. vetor latente vs. reconstrução, a partir de um checkpoint ja treinado
+# (os parametros tem que bater com algum .pt salvo em results/checkpoints/)
+python -m scripts.gera_exemplo_real --dataset cifar10 --latent-dim 64 --noise-level 0.0 --seed 1
 ```
 
 ### 6. Testes
@@ -247,10 +250,14 @@ Todos os gráficos usam o `results_summary.csv` (média ± desvio padrão entre 
 |--------------------------------------|-----------------------------------------------------|
 | `accuracy_vs_compression_ratio.png`  | Trade-off entre compressão e acurácia, com barra de erro e linha de referência do baseline |
 | `accuracy_vs_latent_dim.png`         | Acurácia em função da dimensão latente, com ajuste logarítmico ($R^2$ anotado) |
+| `reconstruction_loss_vs_latent_dim.png` | Erro de reconstrução (MSE do Decoder) vs. dimensão latente — complementa o gráfico acima: mostra o custo em fidelidade visual, não em acurácia da tarefa |
 | `accuracy_vs_noise_level.png`        | Impacto do ruído na acurácia, por dimensão latente (barras de erro) |
 | `communication_cost_vs_latent_dim.png` | Custo de comunicação vs dimensão latente          |
-| `accuracy_iid_vs_dirichlet.png`      | **Novo.** IID vs. não-IID (Dirichlet) — só gerado se você rodou `--partition dirichlet` |
-| `accuracy_by_channel_type.png`       | **Novo.** AWGN vs. Rayleigh vs. Rician — só gerado se você rodou `--channel-type rayleigh`/`rician` |
+| `accuracy_iid_vs_dirichlet.png`      | IID vs. não-IID (Dirichlet) — só gerado se você rodou `--partition dirichlet` |
+| `accuracy_by_channel_type.png`       | AWGN vs. Rayleigh vs. Rician — só gerado se você rodou `--channel-type rayleigh`/`rician` |
+
+### `results/checkpoints/`
+Um arquivo `.pt` por configuração comprimida (Encoder + Classificador + Decoder), nomeado deterministicamente a partir da config (`<dataset>_L<latent_dim>_noise<σ>_<canal>_<partição>_seed<seed>.pt`). Desativa com `--no-save-checkpoint` no `main.py` ou `train_compressed.py` se não quiser salvar.
 
 ### `results/tables/`
 - **`results_table.csv`** — Tabela formatada em CSV
@@ -399,11 +406,14 @@ Exporta os resultados como tabela LaTeX formatada, pronta para inclusão no `mai
 ### `semantic_federated/reporting/aggregate.py` — Agregação Multi-Seed
 Agrupa por configuração (dataset, latent_dim, noise_level, channel_type, partition) e calcula média, desvio padrão e contagem de seeds por métrica, salvando em `results/tables/results_summary.csv`.
 
-### `scripts/gera_exemplo_real.py` — Mosaico Visual
-Gera uma figura demonstrativa com 3 painéis:
-1. Imagem original do CIFAR-10
-2. Vetor de embedding (gráfico de barras)
-3. Imagem reconstruída pelo decoder
+### `semantic_federated/reporting/checkpoints.py` — Pesos Treinados
+Salva e carrega os pesos do modelo (Encoder + Classificador + Decoder) com nome determinístico a partir da config. É o que permite ao `gera_exemplo_real.py` visualizar um modelo realmente treinado, em vez de um treino de brinquedo.
+
+### `scripts/gera_exemplo_real.py` — Original vs. Reconstrução
+Carrega um checkpoint real treinado e gera uma figura com, para cada exemplo (`--num-examples`, default 4):
+1. Imagem original do dataset de teste
+2. Vetor latente (gráfico de barras)
+3. Imagem reconstruída pelo Decoder a partir desse mesmo vetor
 
 ---
 

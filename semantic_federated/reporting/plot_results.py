@@ -132,6 +132,38 @@ def plot_accuracy_vs_latent_dim(summary: pd.DataFrame, out_dir: str) -> None:
     _save(fig, out_dir, "accuracy_vs_latent_dim.png")
 
 
+def plot_reconstruction_loss_vs_latent_dim(summary: pd.DataFrame, out_dir: str) -> None:
+    """Qualidade da reconstrução (MSE do Decoder) vs. dimensão latente, condição limpa.
+
+    Complementa accuracy_vs_latent_dim: mostra o preço em fidelidade visual (não em
+    acurácia da tarefa) de comprimir mais -- o Decoder nunca participa da inferência,
+    mas sua perda aqui mede o quanto o espaço latente ainda carrega estrutura reconstruível.
+    """
+    _ensure_dir(out_dir)
+    df = summary[
+        summary["reconstruction_loss_mean"].notna()
+        & (summary["noise_level"] == 0.0)
+        & (summary["channel_type"] == "awgn")
+        & (summary["partition"] == "iid")
+    ]
+    if df.empty:
+        return
+
+    fig, ax = plt.subplots()
+    for dataset, group in df.groupby("dataset"):
+        group = group.sort_values("latent_dim")
+        ax.errorbar(
+            group["latent_dim"], group["reconstruction_loss_mean"],
+            yerr=group["reconstruction_loss_std"].fillna(0.0),
+            marker="o", color=COLOR_MAP["awgn"], capsize=3, label=dataset,
+        )
+    ax.set_xlabel(r"Dimensão do Espaço Latente ($L$)")
+    ax.set_ylabel("Erro de Reconstrução (MSE)")
+    ax.grid(True)
+    ax.legend()
+    _save(fig, out_dir, "reconstruction_loss_vs_latent_dim.png")
+
+
 def plot_comm_cost_vs_latent_dim(summary: pd.DataFrame, out_dir: str) -> None:
     _ensure_dir(out_dir)
     df = summary[
@@ -285,6 +317,7 @@ def generate_plots(summary_csv: str, out_dir: str) -> None:
     summary = summary.sort_values(by=["dataset", "latent_dim", "noise_level"])
     plot_accuracy_vs_compression(summary, out_dir)
     plot_accuracy_vs_latent_dim(summary, out_dir)
+    plot_reconstruction_loss_vs_latent_dim(summary, out_dir)
     plot_comm_cost_vs_latent_dim(summary, out_dir)
     plot_accuracy_vs_noise(summary, out_dir)
     plot_partition_comparison(summary, out_dir)

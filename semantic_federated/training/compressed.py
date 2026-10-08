@@ -11,6 +11,7 @@ from semantic_federated.metrics import accuracy_from_logits
 from semantic_federated.models.autoencoder import build_autoencoder
 from semantic_federated.models.classifier import LatentClassifier
 from semantic_federated.noise import apply_channel, apply_dropout_noise
+from semantic_federated.reporting.checkpoints import save_checkpoint
 
 
 class CompressedModel(nn.Module):
@@ -134,6 +135,12 @@ def run_compressed(config: Dict) -> Dict:
     raw_bits = total_raw_bits(config["dataset"], total_samples)
     compressed_bits = total_latent_bits(config["latent_dim"], total_samples)
     total_comm_bits = compressed_bits
+
+    if config.get("save_checkpoint", True):
+        checkpoint_path = save_checkpoint(model, config, config.get("checkpoint_dir", "./results/checkpoints"))
+    else:
+        checkpoint_path = None
+
     result = {
         "dataset": config["dataset"],
         "latent_dim": config["latent_dim"],
@@ -148,6 +155,7 @@ def run_compressed(config: Dict) -> Dict:
         "reconstruction_loss": final_eval["eval_reconstruction_loss"],
         "compression_ratio": compression_ratio(raw_bits, compressed_bits),
         "communication_cost_bits": total_comm_bits,
+        "checkpoint_path": checkpoint_path,
     }
     return result
 
@@ -172,6 +180,13 @@ def build_arg_parser():
     parser.add_argument("--channel-type", type=str, choices=["awgn", "rayleigh", "rician"], default="awgn")
     parser.add_argument("--fading-scale", type=float, default=1.0)
     parser.add_argument("--rician-k", type=float, default=1.0)
+    parser.add_argument(
+        "--save-checkpoint",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Salva os pesos treinados em --checkpoint-dir (default: ./results/checkpoints).",
+    )
+    parser.add_argument("--checkpoint-dir", type=str, default="./results/checkpoints")
     return parser
 
 

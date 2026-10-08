@@ -7,12 +7,16 @@ from semantic_federated.reporting.plot_results import (
     plot_channel_comparison,
     plot_comm_cost_vs_latent_dim,
     plot_partition_comparison,
+    plot_reconstruction_loss_vs_latent_dim,
 )
 
 
 def _base_rows():
     rows = []
-    for latent_dim, cr, bits, acc in [(16, 192.0, 25_600_000, 0.60), (64, 48.0, 102_400_000, 0.65)]:
+    for latent_dim, cr, bits, acc, recon in [
+        (16, 192.0, 25_600_000, 0.60, 0.040),
+        (64, 48.0, 102_400_000, 0.65, 0.021),
+    ]:
         rows.append({
             "dataset": "cifar10",
             "latent_dim": latent_dim,
@@ -22,6 +26,8 @@ def _base_rows():
             "accuracy_baseline_mean": 0.68,
             "accuracy_compressed_mean": acc,
             "accuracy_compressed_std": 0.01,
+            "reconstruction_loss_mean": recon,
+            "reconstruction_loss_std": 0.003,
             "compression_ratio": cr,
             "communication_cost_bits": bits,
         })
@@ -38,6 +44,12 @@ def test_plot_accuracy_vs_latent_dim_creates_file_with_log_fit(tmp_path):
     summary = pd.DataFrame(_base_rows())
     plot_accuracy_vs_latent_dim(summary, str(tmp_path))
     assert (tmp_path / "accuracy_vs_latent_dim.png").exists()
+
+
+def test_plot_reconstruction_loss_vs_latent_dim_creates_file(tmp_path):
+    summary = pd.DataFrame(_base_rows())
+    plot_reconstruction_loss_vs_latent_dim(summary, str(tmp_path))
+    assert (tmp_path / "reconstruction_loss_vs_latent_dim.png").exists()
 
 
 def test_plot_comm_cost_vs_latent_dim_creates_file(tmp_path):

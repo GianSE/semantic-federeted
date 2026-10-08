@@ -12,9 +12,21 @@ def save_results(records: List[Dict], out_dir: str, base_name: str) -> None:
     
     df = pd.DataFrame(records)
 
-    # Append directly instead of reading the whole CSV back on every call.
-    csv_has_header = os.path.isfile(csv_path) and os.path.getsize(csv_path) > 0
-    df.to_csv(csv_path, mode="a", header=not csv_has_header, index=False)
+    csv_exists = os.path.isfile(csv_path) and os.path.getsize(csv_path) > 0
+    if not csv_exists:
+        df.to_csv(csv_path, index=False)
+    else:
+        # Caminho rapido: mesmo esquema de colunas (ex.: varias configs comprimidas em
+        # sequencia) -> so acrescenta linhas, sem reler o arquivo inteiro.
+        existing_header = pd.read_csv(csv_path, nrows=0).columns.tolist()
+        if list(df.columns) == existing_header:
+            df.to_csv(csv_path, mode="a", header=False, index=False)
+        else:
+            # Esquema mudou (ex.: baseline sem 'checkpoint_path' vs. comprimido com) --
+            # reconcilia as colunas relendo o CSV, em vez de gerar linhas com numero
+            # de campos diferente (CSV invalido).
+            old_df = pd.read_csv(csv_path)
+            pd.concat([old_df, df], ignore_index=True).to_csv(csv_path, index=False)
     
     # Accumulate in JSON
     all_records = []
